@@ -27,9 +27,45 @@ npm install
 ## CLIコマンド
 
 ```bash
-mkdocsgen init    # mkdocsgen.yml とドキュメント雛形を生成
-mkdocsgen build   # 静的サイトをビルド（--config / --strict / --clean）
-mkdocsgen serve   # 開発サーバーを起動（--port / --config）
+mkdocsgen init    # mkdocsgen.yml とドキュメント雛形を生成（未実装）
+mkdocsgen build   # 静的サイトをビルド
+mkdocsgen serve   # 開発サーバーを起動（未実装）
+```
+
+### build
+
+```bash
+# カレントの mkdocsgen.yml を読んで site/ へ出力する
+npm run dev -- build
+
+# オプション例
+npm run dev -- build --config ./mkdocsgen.yml --clean --strict --verbose
+```
+
+| オプション | 説明 |
+| --- | --- |
+| `--config <path>` | 設定ファイルのパス（デフォルト: `./mkdocsgen.yml`） |
+| `--clean` | 出力ディレクトリを事前に空にする（設定ファイル配下のみ） |
+| `--strict` | 警告が1件以上あれば終了コード1で失敗させる |
+| `--verbose` | デバッグログを出力する |
+
+ビルド成功時はページ数・警告数・所要時間のサマリを表示する。
+テンプレート変数の公開仕様は [dev_docs/template-context.md](./dev_docs/template-context.md) を参照。
+
+### 最小のプロジェクト構成
+
+```
+my-docs/
+├── mkdocsgen.yml
+├── docs/
+│   └── index.md
+└── theme_overrides/   # 任意。partials/footer.njk 等で部分差し替え
+```
+
+```yaml
+# mkdocsgen.yml
+site:
+  title: My Docs
 ```
 
 ## ディレクトリ構成
@@ -40,6 +76,7 @@ src/
 ├── config/       # mkdocsgen.yml の読込・zodバリデーション
 ├── scanner/      # docs/ 走査とナビゲーションツリー構築
 ├── markdown/     # Markdown変換（GFM / Admonition / Shiki / Mermaid / 内部リンク）
+├── build/        # buildパイプライン統合
 ├── pydoc/        # Pythonソース静的解析（web-tree-sitter）とdocstring解析
 ├── render/       # Nunjucksテンプレートによる最終HTML生成
 ├── search/       # 検索インデックス生成（MiniSearch / bigram）

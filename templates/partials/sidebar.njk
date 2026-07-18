@@ -1,0 +1,45 @@
+{# 子孫に現在ページがあるかを文字列で返す（空でなければ含む） #}
+{% macro containsCurrent(nodes, currentUrl) -%}
+{%- for node in nodes -%}
+{%- if node.url == currentUrl -%}1{%- endif -%}
+{%- if node.children and node.children.length > 0 -%}{{ containsCurrent(node.children, currentUrl) }}{%- endif -%}
+{%- endfor -%}
+{%- endmacro %}
+
+{# ナビツリーを再帰描画する。現在ページを含むセクションは初期展開する #}
+{% macro navTree(nodes, currentUrl, root) %}
+  <ul class="nav-list">
+  {% for node in nodes %}
+    {% set hasChildren = node.children and node.children.length > 0 %}
+    {% set isCurrent = node.url == currentUrl %}
+    {# SafeStringの空文字はifでtruthyになるため、"1"との明示比較で判定する #}
+    {% set openMarker = containsCurrent(node.children, currentUrl) if hasChildren else "" %}
+    {% set isOpen = isCurrent or (openMarker == "1") %}
+    <li class="nav-item{% if hasChildren %} nav-item--section{% endif %}{% if isCurrent %} nav-item--current{% endif %}">
+      {% if hasChildren %}
+        <div class="nav-section-row">
+          <button type="button" class="nav-toggle" data-nav-toggle aria-expanded="{{ 'true' if isOpen else 'false' }}" aria-label="{{ node.title }}を展開">
+            <span class="nav-toggle-icon" aria-hidden="true"></span>
+          </button>
+          {% if node.url %}
+            <a class="nav-link" href="{{ root }}{{ node.url }}"{% if isCurrent %} aria-current="page"{% endif %}>{{ node.title }}</a>
+          {% else %}
+            <span class="nav-label">{{ node.title }}</span>
+          {% endif %}
+        </div>
+        <div class="nav-children" data-nav-children{% if not isOpen %} hidden{% endif %}>
+          {{ navTree(node.children, currentUrl, root) }}
+        </div>
+      {% elif node.url %}
+        <a class="nav-link" href="{{ root }}{{ node.url }}"{% if isCurrent %} aria-current="page"{% endif %}>{{ node.title }}</a>
+      {% else %}
+        <span class="nav-label">{{ node.title }}</span>
+      {% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+{% endmacro %}
+
+<nav class="sidebar-nav" aria-label="サイトナビゲーション">
+  {{ navTree(nav, page.outputPath, root) }}
+</nav>

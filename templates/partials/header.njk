@@ -1,0 +1,12 @@
+<header class="site-header">
+  <button type="button" class="menu-toggle" data-menu-toggle aria-controls="sidebar" aria-expanded="false" aria-label="ナビゲーションを開く">
+    <span class="menu-toggle-icon" aria-hidden="true"></span>
+  </button>
+  <a class="site-title" href="{{ root }}index.html">{{ site.title }}</a>
+  <div class="header-actions">
+    {% include "partials/search.njk" %}
+    <button type="button" class="theme-toggle" data-theme-toggle aria-label="テーマを切り替える">
+      <span class="theme-toggle-label" data-theme-label>auto</span>
+    </button>
+  </div>
+</header>

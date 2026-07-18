@@ -1,4 +1,7 @@
 import { Command } from "commander";
+import { BuildError, runBuild } from "../build/pipeline.js";
+import { ConfigError } from "../config/load.js";
+import { Logger } from "../logger.js";
 
 /**
  * MkDocsGen CLIのコマンド定義（init / build / serve）を構築して返す
@@ -28,9 +31,33 @@ export function createProgram(): Command
     .option("--config <path>", "設定ファイルのパス", "./mkdocsgen.yml")
     .option("--strict", "警告をエラーとして扱い、終了コード1で失敗させる", false)
     .option("--clean", "出力ディレクトリを事前に空にする", false)
-    .action(() => {
-      // 本体はまだ実装していないため、現段階では案内メッセージのみ表示する
-      console.log("build コマンドは未実装です");
+    .option("--verbose", "デバッグログを出力する", false)
+    .action(async (options: {
+      config: string;
+      strict: boolean;
+      clean: boolean;
+      verbose: boolean;
+    }) => {
+      const logger = new Logger(options.verbose);
+      try {
+        // パイプラインへ委譲し、成功時はサマリがlogger経由で出る
+        await runBuild({
+          configPath: options.config,
+          strict: options.strict,
+          clean: options.clean,
+          verbose: options.verbose
+        }, logger);
+      } catch (error) {
+        // ConfigError / BuildErrorはメッセージのみ、想定外の例外はスタック付きで表示する
+        if (error instanceof ConfigError || error instanceof BuildError) {
+          logger.error(error.message);
+        } else if (error instanceof Error) {
+          logger.error(error.stack ?? error.message);
+        } else {
+          logger.error(String(error));
+        }
+        process.exitCode = 1;
+      }
     });
 
   // serveコマンド: 開発用HTTPサーバーを起動し、変更監視とライブリロードを行う

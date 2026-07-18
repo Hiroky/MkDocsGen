@@ -1,0 +1,12 @@
+{% extends "base.njk" %}
+
+{% block content %}
+  {% include "partials/breadcrumbs.njk" %}
+  <article class="page">
+    <h1 class="page-title">{{ page.title }}</h1>
+    <div class="page-body">
+      {{ page.contentHtml | safe }}
+    </div>
+  </article>
+  {% include "partials/prev-next.njk" %}
+{% endblock %}

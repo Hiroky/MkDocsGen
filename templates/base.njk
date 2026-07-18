@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ page.title }} - {{ site.title }}{% endblock %}</title>
+  {% if page.description %}<meta name="description" content="{{ page.description }}">{% endif %}
+  <link rel="stylesheet" href="{{ root }}assets/main.css">
+  {% for css in customCss %}
+  <link rel="stylesheet" href="{{ root }}{{ css }}">
+  {% endfor %}
+  {# FOUC防止: localStorageとdefault_modeからテーマを同期適用する #}
+  <script>
+    (function () {
+      var KEY = "mkdocsgen-theme";
+      var stored = null;
+      try { stored = localStorage.getItem(KEY); } catch (e) {}
+      var mode = stored || {{ themeDefaultMode | dump | safe }};
+      function resolve(m) {
+        if (m === "light" || m === "dark") return m;
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.dataset.theme = resolve(mode);
+      document.documentElement.dataset.themeMode = mode;
+    })();
+  </script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <a class="skip-link" href="#main-content">本文へスキップ</a>
+  {% include "partials/header.njk" %}
+  <div class="layout">
+    <div class="sidebar-overlay" data-sidebar-overlay hidden></div>
+    <aside class="sidebar" id="sidebar" data-sidebar>
+      {% include "partials/sidebar.njk" %}
+    </aside>
+    <div class="main-column">
+      <main id="main-content" class="content">
+        {% block content %}{% endblock %}
+      </main>
+      {% include "partials/footer.njk" %}
+    </div>
+    <aside class="toc-sidebar" data-toc-sidebar>
+      {% include "partials/toc.njk" %}
+    </aside>
+  </div>
+  <script src="{{ root }}assets/main.js" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

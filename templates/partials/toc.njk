@@ -1,0 +1,13 @@
+{# 見出しが2件以上のときだけページ内目次を出す #}
+{% if page.headings and page.headings.length > 1 %}
+<nav class="toc" aria-label="ページ内目次">
+  <p class="toc-title">目次</p>
+  <ul class="toc-list">
+  {% for heading in page.headings %}
+    <li class="toc-item toc-item--level-{{ heading.level }}">
+      <a class="toc-link" href="#{{ heading.anchorId }}" data-toc-link data-anchor="{{ heading.anchorId }}">{{ heading.text }}</a>
+    </li>
+  {% endfor %}
+  </ul>
+</nav>
+{% endif %}

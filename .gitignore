@@ -32,6 +32,7 @@ coverage/
 
 # MkDocsGen ビルド出力（動作確認用）
 /site/
+tests/fixtures/**/site/
 
 # 環境変数(コミット禁止)
 .env

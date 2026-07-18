@@ -1,0 +1,16 @@
+{# トップページ（空配列）ではパンくずを出さない #}
+{% if page.breadcrumbs and page.breadcrumbs.length > 0 %}
+<nav class="breadcrumbs" aria-label="パンくず">
+  <ol class="breadcrumbs-list">
+  {% for crumb in page.breadcrumbs %}
+    <li class="breadcrumbs-item">
+      {% if not loop.last %}
+        <a href="{{ root }}{{ crumb.url }}">{{ crumb.title }}</a>
+      {% else %}
+        <span aria-current="page">{{ crumb.title }}</span>
+      {% endif %}
+    </li>
+  {% endfor %}
+  </ol>
+</nav>
+{% endif %}

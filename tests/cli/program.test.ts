@@ -15,7 +15,7 @@ describe("createProgram", () => {
     expect(names).toEqual(["init", "build", "serve"]);
   });
 
-  it("buildコマンドに --config / --strict / --clean オプションが定義されている", () => {
+  it("buildコマンドに --config / --strict / --clean / --verbose オプションが定義されている", () => {
     // 仕様書2.2.2で定められたビルドオプションが揃っていることを確認する
     const program = createProgram();
     const build = program.commands.find((command) => command.name() === "build");
@@ -23,6 +23,7 @@ describe("createProgram", () => {
     expect(flags).toContain("--config");
     expect(flags).toContain("--strict");
     expect(flags).toContain("--clean");
+    expect(flags).toContain("--verbose");
   });
 
   it("serveコマンドに --port / --config オプションが定義されている", () => {

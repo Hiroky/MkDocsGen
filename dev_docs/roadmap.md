@@ -89,17 +89,17 @@ graph TD
 
 **実装内容**
 
-- [ ] Nunjucks Renderer（`base.njk` / `page.njk` / `partials/` 一式の組み込みテーマ）
-- [ ] テンプレートコンテキスト変数（`site` / `page` / `nav` / `breadcrumbs` 等）の確定と文書化
-- [ ] `theme_overrides/` によるテンプレート解決順（オーバーライド優先）
-- [ ] 3カラムレイアウトのテーマCSS（CSS変数によるライト/ダークパレット）
-- [ ] テーマ切替トグル（light → dark → auto 循環、localStorage保存、FOUC防止のインラインスクリプト）
-- [ ] 左サイドバー（階層展開/折りたたみ、現在ページのハイライト）
-- [ ] 右サイドバー（ページ内目次、IntersectionObserverによる追従ハイライト）
-- [ ] パンくず・前後ページナビゲーション
-- [ ] buildコマンド統合（Config → Scan → 変換 → レンダリング → `site/` 出力）
-- [ ] `theme.custom_css` の注入
-- [ ] レスポンシブ対応（1200px / 768px ブレークポイント、モバイルドロワー）
+- [x] Nunjucks Renderer（`base.njk` / `page.njk` / `partials/` 一式の組み込みテーマ）
+- [x] テンプレートコンテキスト変数（`site` / `page` / `nav` / `breadcrumbs` 等）の確定と文書化
+- [x] `theme_overrides/` によるテンプレート解決順（オーバーライド優先）
+- [x] 3カラムレイアウトのテーマCSS（CSS変数によるライト/ダークパレット）
+- [x] テーマ切替トグル（light → dark → auto 循環、localStorage保存、FOUC防止のインラインスクリプト）
+- [x] 左サイドバー（階層展開/折りたたみ、現在ページのハイライト）
+- [x] 右サイドバー（ページ内目次、IntersectionObserverによる追従ハイライト）
+- [x] パンくず・前後ページナビゲーション
+- [x] buildコマンド統合（Config → Scan → 変換 → レンダリング → `site/` 出力）
+- [x] `theme.custom_css` の注入
+- [x] レスポンシブ対応（1200px / 768px ブレークポイント、モバイルドロワー）
 
 **完了条件**: フィクスチャの `docs/` + `mkdocsgen.yml` からのフルビルド統合テスト（スナップショット比較）が通り、出力HTMLをブラウザで開いてレイアウト・テーマ切替が目視確認できる。テンプレートオーバーライドのテスト（`footer.njk` 差し替えでフッターのみ変わる）が通る。
 

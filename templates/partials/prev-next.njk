@@ -1,0 +1,19 @@
+{# prev / next の存在する側だけ描画する #}
+{% if page.prev or page.next %}
+<nav class="prev-next" aria-label="前後のページ">
+  {% if page.prev %}
+    <a class="prev-next-link prev-next-link--prev" href="{{ root }}{{ page.prev.url }}">
+      <span class="prev-next-label">前のページ</span>
+      <span class="prev-next-title">{{ page.prev.title }}</span>
+    </a>
+  {% else %}
+    <span class="prev-next-link prev-next-link--prev prev-next-link--empty"></span>
+  {% endif %}
+  {% if page.next %}
+    <a class="prev-next-link prev-next-link--next" href="{{ root }}{{ page.next.url }}">
+      <span class="prev-next-label">次のページ</span>
+      <span class="prev-next-title">{{ page.next.title }}</span>
+    </a>
+  {% endif %}
+</nav>
+{% endif %}

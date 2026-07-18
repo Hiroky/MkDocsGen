@@ -177,20 +177,20 @@ templates/                # 組み込みテーマ（base.njk / page.njk / partia
 
 ### グループD: レンダリング・テーマ・統合
 
-| ID | タスク | 内容 | 依存 | 見積 |
-| --- | --- | --- | --- | --- |
-| D-1 | Renderer | `src/render/renderer.ts`。Nunjucks環境（overrides→組み込みの解決順）+ renderPage | A-5 | 1.5h |
-| D-2 | テンプレート一式 | base.njk / page.njk / partials 7種（header/sidebar/toc/breadcrumbs/prev-next/search/footer。searchは枠のみ） | D-1 | 2h |
-| D-3 | テーマCSS | 3カラムレイアウト + CSS変数パレット（ライト/ダーク） + タイポグラフィ | D-2 | 2h |
-| D-4 | テーマ切替JS | light→dark→auto循環・localStorage・FOUC防止インラインスクリプト | D-3 | 1.5h |
-| D-5 | サイドバーJS | セクション展開/折りたたみ・現在ページハイライト・aria属性 | D-3 | 1.5h |
-| D-6 | 目次追従JS | IntersectionObserverによる現在セクションハイライト・見出し1以下で非表示 | D-3 | 1.5h |
-| D-7 | レスポンシブ | 1200px/768pxブレークポイント・モバイルドロワー・オーバーレイ | D-3 | 1.5h |
-| D-8 | アセット処理 | `src/render/assets.ts`。テーマアセットコピー + custom_cssコピーと注入 | D-1 | 1h |
-| D-9 | buildパイプライン | `src/build/pipeline.ts`。全モジュール統合・clean/strict・エラーハンドリング | B-6, C-4, D-8 | 2h |
-| D-10 | CLI配線 | program.tsのbuildアクションをpipelineへ接続 + `--verbose` 追加 + サマリ表示 | D-9 | 1h |
-| D-11 | 統合テスト | フィクスチャ一式からのフルビルド + 出力HTMLスナップショット | D-10 | 2h |
-| D-12 | オーバーライド検証 | `theme_overrides/partials/footer.njk` 差し替えテスト + ブラウザ目視確認 | D-11 | 1h |
+| ID | タスク | 内容 | 依存 | 見積 | 状態 |
+| --- | --- | --- | --- | --- | --- |
+| D-1 | Renderer | `src/render/renderer.ts`。Nunjucks環境（overrides→組み込みの解決順）+ renderPage | A-5 | 1.5h | 完了 |
+| D-2 | テンプレート一式 | base.njk / page.njk / partials 7種（header/sidebar/toc/breadcrumbs/prev-next/search/footer。searchは枠のみ） | D-1 | 2h | 完了 |
+| D-3 | テーマCSS | 3カラムレイアウト + CSS変数パレット（ライト/ダーク） + タイポグラフィ | D-2 | 2h | 完了 |
+| D-4 | テーマ切替JS | light→dark→auto循環・localStorage・FOUC防止インラインスクリプト | D-3 | 1.5h | 完了 |
+| D-5 | サイドバーJS | セクション展開/折りたたみ・現在ページハイライト・aria属性 | D-3 | 1.5h | 完了 |
+| D-6 | 目次追従JS | IntersectionObserverによる現在セクションハイライト・見出し1以下で非表示 | D-3 | 1.5h | 完了 |
+| D-7 | レスポンシブ | 1200px/768pxブレークポイント・モバイルドロワー・オーバーレイ | D-3 | 1.5h | 完了 |
+| D-8 | アセット処理 | `src/render/assets.ts`。テーマアセットコピー + custom_cssコピーと注入 | D-1 | 1h | 完了 |
+| D-9 | buildパイプライン | `src/build/pipeline.ts`。全モジュール統合・clean/strict・エラーハンドリング | B-6, C-4, D-8 | 2h | 完了 |
+| D-10 | CLI配線 | program.tsのbuildアクションをpipelineへ接続 + `--verbose` 追加 + サマリ表示 | D-9 | 1h | 完了 |
+| D-11 | 統合テスト | フィクスチャ一式からのフルビルド + 出力HTMLスナップショット | D-10 | 2h | 完了 |
+| D-12 | オーバーライド検証 | `theme_overrides/partials/footer.njk` 差し替えテスト + ブラウザ目視確認 | D-11 | 1h | 完了 |
 
 **合計見積: 約35時間**
 
@@ -830,7 +830,7 @@ tests/fixtures/
 | M1 | 設定が読める（loadConfigがテスト込みで完成） | A-1〜A-5 |
 | M2 | ナビツリーが組める（フィクスチャからNavResultが出る） | B-1〜B-6 |
 | M3 | Markdownが変換できる（ConvertResultが出る）【到達済み】 | C-1〜C-4 |
-| M4 | **MVP完成**: `mkdocsgen build` でサイトが出力されブラウザ閲覧できる | D-1〜D-12 |
+| M4 | **MVP完成**: `mkdocsgen build` でサイトが出力されブラウザ閲覧できる【到達済み】 | D-1〜D-12 |
 
 ### 8.2 進捗の付け方
 
