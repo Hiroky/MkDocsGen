@@ -1,0 +1,38 @@
+bin
+obj
+work
+artifacts
+dist
+.vs
+.vscode
+
+# 一時/サンプル
+*.user
+build*/
+tmp/
+
+# バイナリ
+*.dll
+*.so
+*.pdb
+*.exe
+
+# ログ
+*.log
+*.local.json
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# 環境変数(コミット禁止)
+.env
+.env.local
+.env.*.local
+
+# Lentra ローカル開発データ
+/data/
+
+.DS_Store
