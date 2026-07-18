@@ -1,0 +1,6 @@
+site:
+  title: Custom Docs Dir
+docs_dir: content/docs
+output_dir: build/site
+theme:
+  overrides_dir: custom_theme
