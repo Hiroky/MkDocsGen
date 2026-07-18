@@ -340,6 +340,148 @@ a:hover {
   background: var(--color-code-bg);
 }
 
+/* コピーボタン付きコードブロック */
+.code-block {
+  position: relative;
+  margin: 1rem 0;
+}
+
+.code-block pre {
+  margin: 0;
+}
+
+.code-copy {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  z-index: 1;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.3rem;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.code-copy:hover {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}
+
+/* Shiki dual theme: data-themeに応じてCSS変数を切り替える */
+.page-body .shiki,
+.page-body .shiki span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg, transparent);
+}
+
+html[data-theme="dark"] .page-body .shiki,
+html[data-theme="dark"] .page-body .shiki span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg, transparent);
+}
+
+html[data-theme="dark"] .page-body .shiki {
+  background-color: var(--shiki-dark-bg, var(--color-code-bg));
+}
+
+.page-body .shiki {
+  background-color: var(--shiki-light-bg, var(--color-code-bg));
+}
+
+/* Mermaid図の余白 */
+.page-body pre.mermaid {
+  background: transparent;
+  border: none;
+  text-align: center;
+  overflow-x: auto;
+}
+
+/* Admonition（注記ブロック） */
+.admonition {
+  margin: 1.25rem 0;
+  padding: 0.75rem 1rem 0.9rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--color-border);
+  border-left-width: 4px;
+  background: var(--color-surface);
+}
+
+.admonition-title {
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.admonition-body > *:first-child {
+  margin-top: 0;
+}
+
+.admonition-body > *:last-child {
+  margin-bottom: 0;
+}
+
+.admonition-note {
+  border-left-color: #3b82f6;
+}
+
+.admonition-note .admonition-title {
+  color: #2563eb;
+}
+
+.admonition-tip {
+  border-left-color: #10b981;
+}
+
+.admonition-tip .admonition-title {
+  color: #059669;
+}
+
+.admonition-info {
+  border-left-color: #06b6d4;
+}
+
+.admonition-info .admonition-title {
+  color: #0891b2;
+}
+
+.admonition-warning {
+  border-left-color: #f59e0b;
+}
+
+.admonition-warning .admonition-title {
+  color: #d97706;
+}
+
+.admonition-danger {
+  border-left-color: #ef4444;
+}
+
+.admonition-danger .admonition-title {
+  color: #dc2626;
+}
+
+html[data-theme="dark"] .admonition-note .admonition-title {
+  color: #93c5fd;
+}
+
+html[data-theme="dark"] .admonition-tip .admonition-title {
+  color: #6ee7b7;
+}
+
+html[data-theme="dark"] .admonition-info .admonition-title {
+  color: #67e8f9;
+}
+
+html[data-theme="dark"] .admonition-warning .admonition-title {
+  color: #fcd34d;
+}
+
+html[data-theme="dark"] .admonition-danger .admonition-title {
+  color: #fca5a5;
+}
+
 .page-body table {
   display: block;
   width: 100%;

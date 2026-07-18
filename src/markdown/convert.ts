@@ -3,6 +3,8 @@ import type Token from "markdown-it/lib/token.mjs";
 import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
 import type { Heading } from "../types.js";
+import { admonitionPlugin } from "./admonition.js";
+import { createCodeHighlighter, highlightCode } from "./highlight.js";
 import { slugify } from "./slugify.js";
 import { taskListPlugin } from "./task-list.js";
 
@@ -16,8 +18,11 @@ export interface ConvertResult {
 /**
  * Markdown変換器。markdown-itインスタンスを1回だけ構築し全ページで使い回す
  */
-export function createConverter(config: ResolvedConfig, _logger: Logger)
+export async function createConverter(config: ResolvedConfig, logger: Logger)
 {
+  // Shikiは非同期初期化のため、変換器生成時に1回だけ用意する
+  const highlighter = await createCodeHighlighter();
+
   // 設定に応じて生HTML許可を切り替え、GFM相当のlinkifyを有効にする
   const md = new MarkdownIt({
     html: config.markdown.allow_html,
@@ -25,6 +30,8 @@ export function createConverter(config: ResolvedConfig, _logger: Logger)
   });
   // タスクリストはmarkdown-it標準に無いため自前プラグインで補う
   md.use(taskListPlugin);
+  // Admonition（::: note 等）をブロック拡張として登録する
+  md.use(admonitionPlugin, { logger });
 
   // 見出しアンカー付与はcoreの後処理として差し込む
   md.core.ruler.push("heading_anchors", (state) => {
@@ -36,15 +43,20 @@ export function createConverter(config: ResolvedConfig, _logger: Logger)
     rewriteInternalLinks(state.tokens);
   });
 
+  // フェンス（```）をMermaid / Shiki / プレーン + コピーボタンへ振り分ける
+  md.renderer.rules.fence = (tokens, idx) => {
+    return renderFence(md, tokens[idx]!, highlighter);
+  };
+
   return {
     /**
      * 1ページ分のMarkdownをHTML・見出し一覧・プレーンテキストへ変換する
      */
-    convert(markdown: string, _sourcePath: string): ConvertResult
+    convert(markdown: string, sourcePath: string): ConvertResult
     {
-      // env経由でheadings配列を渡し、ruler側で埋めてもらう
+      // env経由でheadingsとsourcePathを渡し、ruler / Admonition側で参照する
       const headings: Heading[] = [];
-      const html = md.render(markdown, { headings });
+      const html = md.render(markdown, { headings, sourcePath });
       // 検索インデックス用にタグ除去済みテキストも返す
       const plainText = htmlToPlainText(html);
       return {
@@ -54,6 +66,43 @@ export function createConverter(config: ResolvedConfig, _logger: Logger)
       };
     }
   };
+}
+
+/**
+ * フェンス1つをMermaid / Shiki / プレーンへ振り分けてHTML化する
+ */
+function renderFence(md: MarkdownIt, token: Token, highlighter: Awaited<ReturnType<typeof createCodeHighlighter>>): string
+{
+  // infoは "ts" や "js title=..." のような形式なので先頭の言語だけ取る
+  const info = token.info.trim();
+  const lang = info.split(/\s+/)[0]?.toLowerCase() ?? "";
+  const code = token.content;
+
+  // Mermaidはクライアント描画のため生テキストを pre.mermaid に残す
+  if (lang === "mermaid") {
+    return `<pre class="mermaid">${md.utils.escapeHtml(code.replace(/\n$/, ""))}</pre>\n`;
+  }
+
+  // 言語なしはプレーンテキストとして描画する（Shikiを通さない）
+  if (lang.length === 0) {
+    const plain = `<pre><code>${md.utils.escapeHtml(code)}</code></pre>\n`;
+    return wrapCodeBlock(md, plain, code);
+  }
+
+  // 言語ありはShiki dual theme HTMLへ変換する
+  const highlighted = highlightCode(highlighter, code, lang);
+  return wrapCodeBlock(md, highlighted + "\n", code);
+}
+
+/**
+ * コードブロックをコピーボタン付きラッパで囲む
+ */
+function wrapCodeBlock(md: MarkdownIt, innerHtml: string, rawCode: string): string
+{
+  // 末尾改行はクリップボード用データから除く
+  const forCopy = rawCode.replace(/\n$/, "");
+  const escaped = md.utils.escapeHtml(forCopy);
+  return `<div class="code-block"><button type="button" class="code-copy" data-code-copy data-code="${escaped}">Copy</button>${innerHtml}</div>\n`;
 }
 
 /**

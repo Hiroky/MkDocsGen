@@ -47,6 +47,67 @@
     if (label) {
       label.textContent = mode;
     }
+    // Mermaid図もライト/ダークに合わせて再描画する
+    renderMermaid(resolved);
+  }
+
+  /**
+   * コードブロックのコピーボタンを初期化する
+   */
+  function initCodeCopy() {
+    document.querySelectorAll("[data-code-copy]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const code = button.getAttribute("data-code") || "";
+        try {
+          await navigator.clipboard.writeText(code);
+        } catch (_error) {
+          // clipboard APIが使えない環境では何もしない
+          return;
+        }
+        // 一時的にCopied表示して元のラベルへ戻す
+        const original = button.textContent;
+        button.textContent = "Copied";
+        button.disabled = true;
+        window.setTimeout(() => {
+          button.textContent = original;
+          button.disabled = false;
+        }, 1500);
+      });
+    });
+  }
+
+  /**
+   * Mermaid図を現在のテーマで描画（または再描画）する
+   */
+  function renderMermaid(theme) {
+    const mermaid = window.mermaid;
+    if (!mermaid) {
+      return;
+    }
+    const nodes = document.querySelectorAll("pre.mermaid");
+    if (nodes.length === 0) {
+      return;
+    }
+
+    // 再描画のため、前回のSVGを消して定義テキストを復元する
+    nodes.forEach((node) => {
+      const source = node.getAttribute("data-mermaid-source");
+      if (source !== null) {
+        node.removeAttribute("data-processed");
+        node.textContent = source;
+      } else {
+        // 初回描画前に定義を退避し、テーマ切替で再利用する
+        node.setAttribute("data-mermaid-source", node.textContent || "");
+      }
+    });
+
+    mermaid.initialize({
+      startOnLoad: false,
+      // Mermaidのテーマ名は default / dark
+      theme: theme === "dark" ? "dark" : "default",
+      securityLevel: "strict"
+    });
+    mermaid.run({ nodes: Array.from(nodes) });
   }
 
   /**
@@ -54,22 +115,21 @@
    */
   function initThemeToggle() {
     const button = document.querySelector("[data-theme-toggle]");
-    if (!button) {
-      return;
-    }
-
     let mode = readStoredMode() || document.documentElement.dataset.themeMode || "auto";
     if (!MODES.includes(mode)) {
       mode = "auto";
     }
+    // ボタン有無に関わらず現在テーマを確定し、Mermaidも初回描画する
     applyTheme(mode);
 
-    button.addEventListener("click", () => {
-      const currentIndex = MODES.indexOf(mode);
-      mode = MODES[(currentIndex + 1) % MODES.length];
-      writeStoredMode(mode);
-      applyTheme(mode);
-    });
+    if (button) {
+      button.addEventListener("click", () => {
+        const currentIndex = MODES.indexOf(mode);
+        mode = MODES[(currentIndex + 1) % MODES.length];
+        writeStoredMode(mode);
+        applyTheme(mode);
+      });
+    }
 
     // autoモード中はOS設定の変化に追従する
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
@@ -185,4 +245,5 @@
   initSidebarToggles();
   initDrawer();
   initTocSpy();
+  initCodeCopy();
 })();

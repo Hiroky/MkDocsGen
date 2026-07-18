@@ -111,11 +111,11 @@ graph TD
 
 **実装内容**
 
-- [ ] Admonition記法（`::: note` 等、5タイプ + タイトル任意 + 未知タイプは警告付きで `note` 描画）
-- [ ] Shikiによるビルド時シンタックスハイライト（dual theme出力、言語指定なしはプレーンテキスト）
-- [ ] コードブロックのコピーボタン（クリップボードコピー + 「Copied」表示）
-- [ ] Mermaid対応（`<pre class="mermaid">` 出力 + クライアントサイド描画 + テーマ切替時の再描画）
-- [ ] Admonition内コードブロックとdual themeの組み合わせを目視確認（仕様書8.3の懸念事項）
+- [x] Admonition記法（`::: note` 等、5タイプ + タイトル任意 + 未知タイプは警告付きで `note` 描画）
+- [x] Shikiによるビルド時シンタックスハイライト（dual theme出力、言語指定なしはプレーンテキスト）
+- [x] コードブロックのコピーボタン（クリップボードコピー + 「Copied」表示）
+- [x] Mermaid対応（`<pre class="mermaid">` 出力 + クライアントサイド描画 + テーマ切替時の再描画）
+- [x] Admonition内コードブロックとdual themeの組み合わせを目視確認（仕様書8.3の懸念事項）
 
 **完了条件**: Admonition全タイプ・Shiki dual theme・Mermaid出力の単体テストが通り、実ビルドでの描画を目視確認済み。
 

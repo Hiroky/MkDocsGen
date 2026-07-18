@@ -1,8 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { ConfigError } from "../config/load.js";
 import type { ResolvedConfig } from "../config/schema.js";
+
+// ESMからnode_modules内のmermaidパスを解決するためのrequire
+const require = createRequire(import.meta.url);
 
 /**
  * テーマアセットとcustom_cssを出力ディレクトリへコピーする
@@ -16,6 +20,9 @@ export function copyAssets(config: ResolvedConfig): string[]
   // templates/assets/* を outputDirAbs/assets/ へ再帰コピーする
   fs.mkdirSync(outputAssetsDir, { recursive: true });
   copyDirRecursive(builtinAssetsDir, outputAssetsDir);
+
+  // Mermaidランタイムをnode_modulesから同梱する（閲覧時のクライアント描画用）
+  copyMermaidRuntime(outputAssetsDir);
 
   // theme.custom_cssの各ファイルを outputDirAbs/assets/custom/ へコピーする
   const customOutputDir = path.join(outputAssetsDir, "custom");
@@ -40,6 +47,16 @@ export function copyAssets(config: ResolvedConfig): string[]
   }
 
   return injected;
+}
+
+/**
+ * mermaid.min.jsを出力assetsへコピーする
+ */
+function copyMermaidRuntime(outputAssetsDir: string): void
+{
+  // package.jsonのexportsではなく実ファイルパスをresolveする
+  const mermaidEntry = require.resolve("mermaid/dist/mermaid.min.js");
+  fs.copyFileSync(mermaidEntry, path.join(outputAssetsDir, "mermaid.min.js"));
 }
 
 /**

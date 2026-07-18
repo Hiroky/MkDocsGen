@@ -27,6 +27,19 @@ describe("copyAssets", () => {
     expect(fs.existsSync(path.join(fixture.config.outputDirAbs, "assets", "main.js"))).toBe(true);
   });
 
+  it("mermaid.min.jsをoutput/assetsへコピーする", () => {
+    // クライアントサイド描画用ランタイムが同梱されること
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
+
+    copyAssets(fixture.config);
+
+    const mermaidPath = path.join(fixture.config.outputDirAbs, "assets", "mermaid.min.js");
+    expect(fs.existsSync(mermaidPath)).toBe(true);
+    expect(fs.statSync(mermaidPath).size).toBeGreaterThan(0);
+  });
+
   it("custom_cssをassets/customへコピーし相対パス一覧を返す", () => {
     // 追加CSSの注入経路を確認する
     const fixture = createRenderFixture();

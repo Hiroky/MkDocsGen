@@ -40,6 +40,7 @@ describe("Renderer", () => {
     const html = renderer.renderPage(page, createTestContext(fixture.config, [page]));
 
     expect(html).toContain('href="../assets/main.css"');
+    expect(html).toContain('src="../assets/mermaid.min.js"');
     expect(html).toContain('src="../assets/main.js"');
   });
 

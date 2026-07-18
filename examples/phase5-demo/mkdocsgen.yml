@@ -1,0 +1,10 @@
+site:
+  title: Phase5 Demo
+  description: Admonition Shiki Mermaid visual check
+  base_url: /
+
+docs_dir: docs
+output_dir: site
+
+theme:
+  default_mode: auto
