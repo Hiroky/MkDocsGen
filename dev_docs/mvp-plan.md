@@ -168,12 +168,12 @@ templates/                # 組み込みテーマ（base.njk / page.njk / partia
 
 ### グループC: Markdown変換
 
-| ID | タスク | 内容 | 依存 | 見積 |
-| --- | --- | --- | --- | --- |
-| C-1 | 基本変換 | `src/markdown/convert.ts`。markdown-it設定（GFM有効・allow_html切替） | A-5 | 1h |
-| C-2 | アンカー/headings | 見出しslug生成（日本語対応・重複回避）とHeading[]抽出 | C-1 | 2h |
-| C-3 | 内部リンク書き換え | 相対 `.md` リンクの `.html` 化（アンカー保持、外部/絶対リンクは非対象） | C-1 | 2h |
-| C-4 | plainText抽出 | HTMLタグ除去 + エンティティ復元 + 空白正規化 | C-1 | 1h |
+| ID | タスク | 内容 | 依存 | 見積 | 状態 |
+| --- | --- | --- | --- | --- | --- |
+| C-1 | 基本変換 | `src/markdown/convert.ts`。markdown-it設定（GFM有効・allow_html切替） | A-5 | 1h | 完了 |
+| C-2 | アンカー/headings | 見出しslug生成（日本語対応・重複回避）とHeading[]抽出 | C-1 | 2h | 完了 |
+| C-3 | 内部リンク書き換え | 相対 `.md` リンクの `.html` 化（アンカー保持、外部/絶対リンクは非対象） | C-1 | 2h | 完了 |
+| C-4 | plainText抽出 | HTMLタグ除去 + エンティティ復元 + 空白正規化 | C-1 | 1h | 完了 |
 
 ### グループD: レンダリング・テーマ・統合
 
@@ -829,7 +829,7 @@ tests/fixtures/
 | --- | --- | --- |
 | M1 | 設定が読める（loadConfigがテスト込みで完成） | A-1〜A-5 |
 | M2 | ナビツリーが組める（フィクスチャからNavResultが出る） | B-1〜B-6 |
-| M3 | Markdownが変換できる（ConvertResultが出る） | C-1〜C-4 |
+| M3 | Markdownが変換できる（ConvertResultが出る）【到達済み】 | C-1〜C-4 |
 | M4 | **MVP完成**: `mkdocsgen build` でサイトが出力されブラウザ閲覧できる | D-1〜D-12 |
 
 ### 8.2 進捗の付け方
