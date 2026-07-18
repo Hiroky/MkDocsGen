@@ -55,4 +55,55 @@ describe("Admonition", () => {
     expect(warn.mock.calls[0]?.[0]).toMatch(/weird/);
     expect(warn.mock.calls[0]?.[0]).toMatch(/guide\/x\.md/);
   });
+
+  it("本文のコードフェンス内の:::ではAdmonitionを閉じない", async () => {
+    // フェンス内の単独:::を閉じと誤認すると後続Markdownが壊れる
+    const converter = await createConverter(createMarkdownConfig(), createSilentLogger());
+    const md = [
+      "::: note",
+      "before",
+      "```",
+      ":::",
+      "```",
+      "after fence",
+      ":::",
+      "",
+      "outside"
+    ].join("\n");
+    const { html } = converter.convert(md, "index.md");
+
+    const asideEnd = html.indexOf("</aside>");
+    expect(asideEnd).toBeGreaterThan(-1);
+    const inside = html.slice(0, asideEnd);
+    const outside = html.slice(asideEnd);
+
+    // after fence は aside の内側に残る（早期クローズしていない）
+    expect(inside).toContain("before");
+    expect(inside).toContain("after fence");
+    // フェンス内の:::もコードとして内側に残る
+    expect(inside).toContain(":::");
+    // outside だけが aside の外
+    expect(outside).toContain("outside");
+    expect(outside).not.toContain("after fence");
+    expect(html.match(/class="admonition admonition-note"/g)?.length).toBe(1);
+  });
+
+  it("本文のチルダフェンス内の:::でも閉じない", async () => {
+    const converter = await createConverter(createMarkdownConfig(), createSilentLogger());
+    const md = [
+      "::: tip",
+      "~~~",
+      ":::",
+      "~~~",
+      "still inside",
+      ":::"
+    ].join("\n");
+    const { html } = converter.convert(md, "index.md");
+
+    const asideEnd = html.indexOf("</aside>");
+    const inside = html.slice(0, asideEnd);
+    expect(html).toContain('class="admonition admonition-tip"');
+    expect(inside).toContain("still inside");
+    expect(html.match(/<\/aside>/g)?.length).toBe(1);
+  });
 });

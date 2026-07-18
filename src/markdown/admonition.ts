@@ -69,13 +69,33 @@ function parseAdmonition(
   const rawType = openMatch[1]!;
   const rawTitle = (openMatch[2] ?? "").trim();
 
-  // 閉じ ::: を探す（ネストはサポートしない）
+  // 閉じ ::: を探す（ネストはサポートしない）。コードフェンス内の:::は無視する
   let nextLine = startLine + 1;
   let foundClose = false;
+  // フェンス内にいるときは { marker, length } を保持する（nullなら外側）
+  let openFence: { marker: string; length: number } | null = null;
   while (nextLine < endLine) {
     const lineStart = state.bMarks[nextLine]! + state.tShift[nextLine]!;
     const lineMax = state.eMarks[nextLine]!;
     const text = state.src.slice(lineStart, lineMax).trim();
+
+    if (openFence !== null) {
+      // 開いているフェンスの閉じ行ならフェンス外へ戻る
+      if (isFenceClose(text, openFence.marker, openFence.length)) {
+        openFence = null;
+      }
+      nextLine += 1;
+      continue;
+    }
+
+    // フェンス開始行なら、閉じるまで ::: を閉じ判定に使わない
+    const fenceOpen = matchFenceOpen(text);
+    if (fenceOpen !== null) {
+      openFence = fenceOpen;
+      nextLine += 1;
+      continue;
+    }
+
     if (text === ":::") {
       foundClose = true;
       break;
@@ -131,4 +151,30 @@ function parseAdmonition(
   state.lineMax = oldLineMax;
   state.line = nextLine + 1;
   return true;
+}
+
+/**
+ * コードフェンス開始行ならマーカー文字と長さを返す
+ */
+function matchFenceOpen(line: string): { marker: string; length: number } | null
+{
+  // CommonMark: 行頭の3つ以上の ` または ~
+  const match = line.match(/^(`{3,}|~{3,})/);
+  if (!match) {
+    return null;
+  }
+  const fence = match[1]!;
+  return { marker: fence[0]!, length: fence.length };
+}
+
+/**
+ * 開いているフェンスに対応する閉じ行かどうかを判定する
+ */
+function isFenceClose(line: string, marker: string, minLength: number): boolean
+{
+  // 閉じは同じ文字がminLength以上で、その後は空白のみ
+  const re = marker === "`"
+    ? new RegExp(`^\`{${minLength},}\\s*$`)
+    : new RegExp(`^~{${minLength},}\\s*$`);
+  return re.test(line);
 }

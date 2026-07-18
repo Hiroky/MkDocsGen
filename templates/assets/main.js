@@ -4,6 +4,10 @@
   const THEME_KEY = "mkdocsgen-theme";
   const MODES = ["light", "dark", "auto"];
 
+  // Mermaid再描画の直列化用（テーマ連打時の競合防止）
+  let mermaidRenderBusy = false;
+  let mermaidQueuedTheme = null;
+
   /**
    * localStorageからテーマモードを読む
    */
@@ -89,6 +93,14 @@
       return;
     }
 
+    // 描画中にテーマが連打されたら、最新テーマだけ後続で実行する
+    if (mermaidRenderBusy) {
+      mermaidQueuedTheme = theme;
+      return;
+    }
+    mermaidRenderBusy = true;
+    mermaidQueuedTheme = null;
+
     // 再描画のため、前回のSVGを消して定義テキストを復元する
     nodes.forEach((node) => {
       const source = node.getAttribute("data-mermaid-source");
@@ -107,7 +119,22 @@
       theme: theme === "dark" ? "dark" : "default",
       securityLevel: "strict"
     });
-    mermaid.run({ nodes: Array.from(nodes) });
+
+    // 不正な図定義で unhandled rejection にしない（suppressErrors + catch）
+    Promise.resolve(mermaid.run({
+      nodes: Array.from(nodes),
+      suppressErrors: true
+    })).catch(() => {
+      // suppressErrorsでも環境によってrejectする場合があるため握りつぶす
+    }).finally(() => {
+      mermaidRenderBusy = false;
+      // 描画中にキューされた最新テーマがあれば再実行する
+      if (mermaidQueuedTheme !== null) {
+        const nextTheme = mermaidQueuedTheme;
+        mermaidQueuedTheme = null;
+        renderMermaid(nextTheme);
+      }
+    });
   }
 
   /**
