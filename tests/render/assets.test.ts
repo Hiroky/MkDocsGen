@@ -51,4 +51,19 @@ describe("copyAssets", () => {
     expect(() => copyAssets(fixture.config)).toThrow(ConfigError);
     expect(() => copyAssets(fixture.config)).toThrow(/missing\.css/);
   });
+
+  it("同名basenameのcustom_cssはConfigErrorにする", () => {
+    // 上書き衝突を隠さず明示的に失敗させる
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    fs.mkdirSync(path.join(fixture.root, "a"), { recursive: true });
+    fs.mkdirSync(path.join(fixture.root, "b"), { recursive: true });
+    fs.writeFileSync(path.join(fixture.root, "a", "brand.css"), "a{}", "utf-8");
+    fs.writeFileSync(path.join(fixture.root, "b", "brand.css"), "b{}", "utf-8");
+    fixture.config.theme.custom_css = ["a/brand.css", "b/brand.css"];
+    fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
+
+    expect(() => copyAssets(fixture.config)).toThrow(ConfigError);
+    expect(() => copyAssets(fixture.config)).toThrow(/basename|同名|重複/);
+  });
 });

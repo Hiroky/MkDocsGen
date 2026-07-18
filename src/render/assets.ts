@@ -20,14 +20,20 @@ export function copyAssets(config: ResolvedConfig): string[]
   // theme.custom_cssの各ファイルを outputDirAbs/assets/custom/ へコピーする
   const customOutputDir = path.join(outputAssetsDir, "custom");
   const injected: string[] = [];
+  const usedNames = new Set<string>();
   for (const relCss of config.theme.custom_css) {
     // 設定ファイル基準の絶対パスへ解決する
     const absCss = path.resolve(config.configDir, relCss);
     if (!fs.existsSync(absCss)) {
       throw new ConfigError(`custom_css が見つかりません: ${relCss}`);
     }
-    fs.mkdirSync(customOutputDir, { recursive: true });
     const fileName = path.basename(absCss);
+    // 同名basenameは後勝ち上書きになるため、衝突を明示エラーにする
+    if (usedNames.has(fileName)) {
+      throw new ConfigError(`custom_css のファイル名が重複しています: ${fileName}`);
+    }
+    usedNames.add(fileName);
+    fs.mkdirSync(customOutputDir, { recursive: true });
     fs.copyFileSync(absCss, path.join(customOutputDir, fileName));
     // テンプレートへ注入する出力相対パス（POSIX区切り）を集める
     injected.push(`assets/custom/${fileName}`);

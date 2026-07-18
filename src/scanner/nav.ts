@@ -327,10 +327,10 @@ function flattenTree(
     }
 
     if (node.kind === "section") {
-      // セクション参照（index無ければurl空文字で階層だけ残す）
+      // セクション参照（index無ければurlはnullで非リンクにする）
       const sectionRef: PageRef = {
         title: node.title,
-        url: node.page?.outputPath ?? ""
+        url: node.page?.outputPath ?? null
       };
 
       if (node.page) {

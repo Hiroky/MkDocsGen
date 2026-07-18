@@ -22,4 +22,10 @@ describe("slugify", () => {
   it("英日混在の見出しも正しく処理する", () => {
     expect(slugify("API リファレンス")).toBe("api-リファレンス");
   });
+
+  it("記号のみの見出しは空文字ではなくフォールバックslugになる", () => {
+    // id="" や TOC壊れを防ぐ
+    expect(slugify("!!!")).toBe("heading");
+    expect(slugify("???")).toBe("heading");
+  });
 });

@@ -5,7 +5,12 @@
   {% for crumb in page.breadcrumbs %}
     <li class="breadcrumbs-item">
       {% if not loop.last %}
-        <a href="{{ root }}{{ crumb.url }}">{{ crumb.title }}</a>
+        {# index無しセクションはurlがnullなのでリンクにしない #}
+        {% if crumb.url %}
+          <a href="{{ root }}{{ crumb.url }}">{{ crumb.title }}</a>
+        {% else %}
+          <span>{{ crumb.title }}</span>
+        {% endif %}
       {% else %}
         <span aria-current="page">{{ crumb.title }}</span>
       {% endif %}

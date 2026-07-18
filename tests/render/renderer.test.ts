@@ -104,6 +104,27 @@ describe("Renderer", () => {
     expect(html).toMatch(/aria-current="page"/);
   });
 
+  it("urlがnullのパンくずはリンクにしない", () => {
+    // index無しセクションを誤ったhrefにしない
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    const page = createTestPage({
+      sourcePath: "guide/setup.md",
+      outputPath: "guide/setup.html",
+      title: "Setup",
+      breadcrumbs: [
+        { title: "guide", url: null },
+        { title: "Setup", url: "guide/setup.html" }
+      ]
+    });
+    const renderer = new Renderer(fixture.config);
+    const html = renderer.renderPage(page, createTestContext(fixture.config, [page]));
+
+    expect(html).toContain("guide");
+    expect(html).not.toMatch(/<a href="(\.\.\/)?">guide<\/a>/);
+    expect(html).toContain(">guide</span>");
+  });
+
   it("headingsが2件以上のときだけ目次が出る", () => {
     // 仕様: 見出しが1以下ならTOC非表示
     const fixture = createRenderFixture();

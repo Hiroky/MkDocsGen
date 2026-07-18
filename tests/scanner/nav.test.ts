@@ -193,7 +193,7 @@ describe("buildNav", () => {
   });
 
   it("indexの無いセクションもパンくずに含める", () => {
-    // urlが無いセクションは空文字のurlで階層を残す
+    // urlが無いセクションはnullにしてリンク化を避ける
     const fixture = createDocsFixture({
       "guide/setup.md": "# Setup\n"
     });
@@ -203,7 +203,7 @@ describe("buildNav", () => {
     const { breadcrumbsMap } = buildNav(sources, fixture.config, logger);
 
     expect(breadcrumbsMap.get("guide/setup.md")).toEqual([
-      { title: "guide", url: "" },
+      { title: "guide", url: null },
       { title: "Setup", url: "guide/setup.html" }
     ]);
   });

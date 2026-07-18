@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import fastGlob from "fast-glob";
 import matter from "gray-matter";
+import { ConfigError } from "../config/load.js";
 import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
 
@@ -34,8 +35,10 @@ export interface PageSource {
  */
 function extractFirstH1(markdown: string): string | null
 {
+  // コードフェンス内の "# ..." を誤検出しないよう、先にフェンスを取り除く
+  const withoutFences = markdown.replace(/```[\s\S]*?```/g, "").replace(/~~~[\s\S]*?~~~/g, "");
   // 行頭の "# 見出し" だけを対象にする（## 以降はタイトル候補にしない）
-  const match = markdown.match(/^#\s+(.+)$/m);
+  const match = withoutFences.match(/^#\s+(.+)$/m);
   if (!match || match[1] === undefined) {
     return null;
   }
@@ -74,6 +77,11 @@ function parseOrder(raw: unknown): number | null
  */
 export function scanPages(config: ResolvedConfig, logger: Logger): PageSource[]
 {
+  // docs_dirが無い／ディレクトリでない場合は黙って0件にせずエラーにする
+  if (!fs.existsSync(config.docsDirAbs) || !fs.statSync(config.docsDirAbs).isDirectory()) {
+    throw new ConfigError(`docs_dir が見つかりません: ${config.docsDirAbs}`);
+  }
+
   // fast-globで走査する。excludeはignoreオプションでglobのまま渡す
   const files = fastGlob.sync("**/*.md", {
     cwd: config.docsDirAbs,

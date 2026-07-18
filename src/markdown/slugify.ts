@@ -8,5 +8,7 @@ export function slugify(text: string): string
   // 2. 空白類をハイフンに置き換える
   const spaced = lower.replace(/\s+/g, "-");
   // 3. Unicodeの文字・数字・ハイフン以外を除去する（日本語は\p{L}で残る）
-  return spaced.replace(/[^\p{L}\p{N}-]/gu, "");
+  const slug = spaced.replace(/[^\p{L}\p{N}-]/gu, "");
+  // 4. 記号のみ見出しなどで空になった場合は、id=""を避けるためフォールバックする
+  return slug.length > 0 ? slug : "heading";
 }

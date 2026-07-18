@@ -1,5 +1,6 @@
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import fs from "node:fs";
 import { scanPages } from "../../src/scanner/scan.js";
 import { createCapturingLogger, createDocsFixture, createSilentLogger } from "./helpers.js";
 
@@ -73,6 +74,26 @@ describe("scanPages", () => {
     expect(byPath["from-fm.md"]).toBe("From Frontmatter");
     expect(byPath["from-h1.md"]).toBe("Heading Title");
     expect(byPath["from-name.md"]).toBe("from-name");
+  });
+
+  it("コードフェンス内の見出し風行はタイトル候補にしない", () => {
+    // ```内の # comment を誤ってタイトルにしない
+    const fixture = createDocsFixture({
+      "fenced.md": "```\n# Not A Title\n```\n\n# Real Title\n"
+    });
+    cleanups.push(fixture.cleanup);
+
+    const sources = scanPages(fixture.config, createSilentLogger());
+    expect(sources[0]?.title).toBe("Real Title");
+  });
+
+  it("docs_dirが存在しないときはエラーにする", () => {
+    // 0ページ成功で黙らない
+    const fixture = createDocsFixture({ "index.md": "# Home\n" });
+    cleanups.push(fixture.cleanup);
+    fs.rmSync(fixture.docsDir, { recursive: true, force: true });
+
+    expect(() => scanPages(fixture.config, createSilentLogger())).toThrow(/docs/);
   });
 
   it("descriptionとorderをfrontmatterから取り、非数値orderは警告してnullにする", () => {

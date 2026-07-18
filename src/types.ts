@@ -17,7 +17,8 @@ export interface Heading {
  */
 export interface PageRef {
   title: string;
-  url: string;
+  /** 出力相対パス。index無しセクションのパンくずではnull */
+  url: string | null;
 }
 
 /**

@@ -101,6 +101,16 @@ describe("createConverter", () => {
 
       expect(headings).toEqual([{ level: 2, text: "Hello World", anchorId: "hello-world" }]);
     });
+
+    it("記号のみの見出しにも空でないidを付ける", () => {
+      // slug空文字によるid=""を防ぐ
+      const converter = createConverter(createMarkdownConfig(), createSilentLogger());
+      const { html, headings } = converter.convert("## !!!\n\n## ???\n", "index.md");
+
+      expect(html).toContain('id="heading"');
+      expect(html).toContain('id="heading-2"');
+      expect(headings.map((h) => h.anchorId)).toEqual(["heading", "heading-2"]);
+    });
   });
 
   describe("C-3 内部リンク書き換え", () => {
