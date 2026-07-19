@@ -21,6 +21,7 @@ import { assignPrevNext, buildNav } from "../scanner/nav.js";
 import { scanPages, type PageSource } from "../scanner/scan.js";
 import { buildSearchIndex, writeSearchIndex } from "../search/index.js";
 import type { BuildContext, NavNode, Page } from "../types.js";
+import { copyStaticDocs } from "./static-docs.js";
 import { validateLinks } from "./validate-links.js";
 
 /** buildコマンドのオプション */
@@ -273,6 +274,8 @@ export async function writeFullSite(
 ): Promise<BuildContext>
 {
   fs.mkdirSync(config.outputDirAbs, { recursive: true });
+  // テーマ資産の前に docs の画像等を同じ相対パスでコピーする
+  copyStaticDocs(config);
   copyAssets(config);
   writeSearchIndex(config.outputDirAbs, buildSearchIndex(pages));
   const renderer = new Renderer(config);

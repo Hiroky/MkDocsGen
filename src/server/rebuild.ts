@@ -19,6 +19,7 @@ import { buildNav } from "../scanner/nav.js";
 import { scanPages } from "../scanner/scan.js";
 import { buildSearchIndex, writeSearchIndex } from "../search/index.js";
 import type { BuildContext, NavNode, Page } from "../types.js";
+import { syncStaticDocPaths } from "../build/static-docs.js";
 
 /** Markdown変換器の型（createConverterの戻り値） */
 type MarkdownConverter = Awaited<ReturnType<typeof createConverter>>;
@@ -161,9 +162,13 @@ export async function rebuildDocs(
   }
 
   // navが不変なら、変更されたページだけ再変換・再レンダリングする
-  const changedSet = new Set(
-    changedSourcePaths.map((p) => p.split(path.sep).join("/")).filter((p) => p.endsWith(".md"))
-  );
+  const normalizedChanged = changedSourcePaths.map((p) => p.split(path.sep).join("/"));
+  const changedSet = new Set(normalizedChanged.filter((p) => p.endsWith(".md")));
+  // 画像など非Markdownの変更は出力へ同期する（追加・更新・削除）
+  const staticChanged = normalizedChanged.filter((p) => !p.endsWith(".md"));
+  if (staticChanged.length > 0) {
+    syncStaticDocPaths(config, staticChanged);
+  }
   const previousPages = new Map(state.pages.map((page) => [page.sourcePath, page]));
   // 変換コスト（Shiki等）も差分にするため、変更ページだけconvertする
   const converted = await convertSourcesToPagesSafe(
@@ -187,7 +192,11 @@ export async function rebuildDocs(
   // 検索インデックスは全文から作り直す（ページ数が少なくコストが小さい）
   writeSearchIndex(config.outputDirAbs, buildSearchIndex(converted.pages));
   // 増分ではbuildEndを呼ばない（serve保存連打で副作用プラグインが毎回同期されないようにする）
-  logger.info(`増分ビルド: ${rebuiltPaths.length}ページを更新`);
+  if (rebuiltPaths.length > 0) {
+    logger.info(`増分ビルド: ${rebuiltPaths.length}ページを更新`);
+  } else if (staticChanged.length > 0) {
+    logger.info(`増分ビルド: 静的ファイル${staticChanged.length}件を同期`);
+  }
 
   return {
     mode: "partial",

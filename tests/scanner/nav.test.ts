@@ -192,6 +192,40 @@ describe("buildNav", () => {
     ]);
   });
 
+  it("3段以上の階層でもbreadcrumbsとナビツリーが深さを保つ", () => {
+    // 深い docs 階層の目視・結合確認の前提になるナビ構造を固定する
+    const fixture = createDocsFixture({
+      "index.md": "---\ntitle: Home\n---\n",
+      "samples/index.md": "---\ntitle: サンプル\n---\n",
+      "samples/hierarchy/index.md": "---\ntitle: 階層デモ\n---\n",
+      "samples/hierarchy/level-a/index.md": "---\ntitle: Level A\n---\n",
+      "samples/hierarchy/level-a/level-b/index.md": "---\ntitle: Level B\n---\n",
+      "samples/hierarchy/level-a/level-b/leaf.md": "---\ntitle: Leaf\n---\n"
+    });
+    cleanups.push(fixture.cleanup);
+    const logger = createSilentLogger();
+    const sources = scanPages(fixture.config, logger);
+    const { nav, breadcrumbsMap } = buildNav(sources, fixture.config, logger);
+
+    expect(breadcrumbsMap.get("samples/hierarchy/level-a/level-b/leaf.md")).toEqual([
+      { title: "サンプル", url: "samples/index.html" },
+      { title: "階層デモ", url: "samples/hierarchy/index.html" },
+      { title: "Level A", url: "samples/hierarchy/level-a/index.html" },
+      { title: "Level B", url: "samples/hierarchy/level-a/level-b/index.html" },
+      { title: "Leaf", url: "samples/hierarchy/level-a/level-b/leaf.html" }
+    ]);
+
+    // サイドバー用ツリーも多段の children を持つ
+    const samples = nav.find((n) => n.url === "samples/index.html");
+    const hierarchy = samples?.children.find((n) => n.url === "samples/hierarchy/index.html");
+    const levelA = hierarchy?.children.find((n) => n.url === "samples/hierarchy/level-a/index.html");
+    const levelB = levelA?.children.find((n) => n.url === "samples/hierarchy/level-a/level-b/index.html");
+    expect(levelB?.title).toBe("Level B");
+    expect(levelB?.children).toEqual([
+      { title: "Leaf", url: "samples/hierarchy/level-a/level-b/leaf.html", children: [] }
+    ]);
+  });
+
   it("indexの無いセクションもパンくずに含める", () => {
     // urlが無いセクションはnullにしてリンク化を避ける
     const fixture = createDocsFixture({

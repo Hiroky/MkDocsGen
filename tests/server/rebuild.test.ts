@@ -97,6 +97,29 @@ describe("rebuild helpers", () => {
     }
   });
 
+  it("増分ビルドで静的ファイルの追加・削除を出力へ同期する", async () => {
+    const { fullBuild, rebuildDocs } = await import("../../src/server/rebuild.js");
+    const root = createTempProject();
+    const logger = silentLogger();
+    const config = loadConfig(path.join(root, "mkdocsgen.yml"));
+
+    try {
+      const state = await fullBuild(config, logger);
+
+      fs.mkdirSync(path.join(root, "docs/img"), { recursive: true });
+      fs.writeFileSync(path.join(root, "docs/img/a.png"), "A", "utf-8");
+      const added = await rebuildDocs(state, ["img/a.png"], logger);
+      expect(added.mode).toBe("partial");
+      expect(fs.readFileSync(path.join(root, "site/img/a.png"), "utf-8")).toBe("A");
+
+      fs.rmSync(path.join(root, "docs/img/a.png"));
+      await rebuildDocs(added.state, ["img/a.png"], logger);
+      expect(fs.existsSync(path.join(root, "site/img/a.png"))).toBe(false);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("監視パス種別を正しく分類する", async () => {
     const { classifyPath } = await import("../../src/server/rebuild.js");
     const root = createTempProject();

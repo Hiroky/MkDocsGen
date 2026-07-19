@@ -17,6 +17,8 @@ output_dir: site
 nav: []
   # - title: ホーム
   #   path: index.md
+  # - title: ガイド
+  #   path: guide/          # 末尾 / でセクション階層を保持
 exclude: []
 
 theme:

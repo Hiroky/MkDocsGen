@@ -6,31 +6,19 @@ site:
 docs_dir: docs
 output_dir: site
 
+# ディレクトリ指定でセクション配下をツリーのまま載せる（ページ単位列挙だと階層が潰れる）
 nav:
   - title: ホーム
     path: index.md
-  - title: はじめに
-    path: guide/getting-started.md
-  - title: 設定
-    path: guide/configuration.md
-  - title: 執筆ガイド
-    path: guide/writing.md
-  - title: Markdown拡張
-    path: guide/markdown.md
-  - title: テーマ
-    path: guide/theming.md
-  - title: PyDoc
-    path: guide/pydoc.md
-  - title: プラグイン
-    path: guide/plugins.md
-  - title: CLIリファレンス
-    path: reference/cli.md
-  - title: 設定スキーマ
-    path: reference/config.md
-  - title: テンプレートコンテキスト変数
-    path: reference/template-context.md
+  - title: ガイド
+    path: guide/
+  - title: リファレンス
+    path: reference/
+  - title: サンプル
+    path: samples/
 
-exclude: []
+exclude:
+  - _samples/**
 
 theme:
   overrides_dir: theme_overrides

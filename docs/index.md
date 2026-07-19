@@ -44,3 +44,4 @@ npm run docs:serve
 - [はじめに](./guide/getting-started.md) — インストールから最初のビルドまで
 - [設定](./guide/configuration.md) — `mkdocsgen.yml` の概要
 - [CLIリファレンス](./reference/cli.md) — コマンドとオプション一覧
+- [階層デモ](./samples/hierarchy/index.md) — 多段サイドバー・パンくずの確認
