@@ -23,6 +23,7 @@ npm install
 | `npm test` | テストを1回実行する |
 | `npm run test:watch` | テストをウォッチモードで実行する |
 | `npm run test:coverage` | カバレッジ付きでテストを実行する |
+| `npm run example:build` | `examples/phase5-demo` をビルドし `site/` へ出力する（`index.html` をブラウザで直接開いて確認） |
 
 ## CLIコマンド
 
@@ -84,6 +85,7 @@ src/
 └── server/       # 開発サーバー（chokidar監視 + WebSocketライブリロード）
 templates/        # 組み込みテーマのNunjucksテンプレート
 tests/            # テストコード（src/ とディレクトリ構造を対応させる）
+examples/         # 目視確認用サンプル（詳細は examples/README.md）
 examples/plugins/ # プラグイン参考実装（Confluenceエクスポート等）
 dev_docs/         # 開発用内部ドキュメント（ロードマップ等）
 tasks/            # 開発メモ（lessons.md 等）

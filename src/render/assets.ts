@@ -24,6 +24,9 @@ export function copyAssets(config: ResolvedConfig): string[]
   // Mermaidランタイムをnode_modulesから同梱する（閲覧時のクライアント描画用）
   copyMermaidRuntime(outputAssetsDir);
 
+  // MiniSearchランタイムをnode_modulesから同梱する（検索の遅延ロード用）
+  copyMinisearchRuntime(outputAssetsDir);
+
   // theme.custom_cssの各ファイルを outputDirAbs/assets/custom/ へコピーする
   const customOutputDir = path.join(outputAssetsDir, "custom");
   const injected: string[] = [];
@@ -57,6 +60,17 @@ function copyMermaidRuntime(outputAssetsDir: string): void
   // package.jsonのexportsではなく実ファイルパスをresolveする
   const mermaidEntry = require.resolve("mermaid/dist/mermaid.min.js");
   fs.copyFileSync(mermaidEntry, path.join(outputAssetsDir, "mermaid.min.js"));
+}
+
+/**
+ * minisearchのUMDビルドを出力assetsへコピーする
+ */
+function copyMinisearchRuntime(outputAssetsDir: string): void
+{
+  // exportsにUMDパスが無いため、パッケージ入口から相対解決する
+  const packageEntry = require.resolve("minisearch");
+  const minisearchEntry = path.resolve(path.dirname(packageEntry), "../umd/index.js");
+  fs.copyFileSync(minisearchEntry, path.join(outputAssetsDir, "minisearch.min.js"));
 }
 
 /**

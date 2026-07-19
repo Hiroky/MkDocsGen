@@ -95,6 +95,37 @@ describe("runBuild", () => {
     expect(infos.some((line) => /2ページを出力 \(警告0件, .+秒\)/.test(line))).toBe(true);
   });
 
+  it("ビルドでsearch-index.jsonとsearch-index.jsを出力する", async () => {
+    // 全文検索用インデックスがページ数ぶんdocumentsを持つこと（JSON確認用・JS読込用）
+    const { root, configPath } = createBuildProject({
+      files: {
+        "index.md": "# Home\n\nWelcome home.\n",
+        "guide.md": "# Guide\n\nHow to use.\n"
+      }
+    });
+
+    await runBuild({
+      configPath,
+      strict: false,
+      clean: false,
+      verbose: false
+    }, silentLogger());
+
+    const assetsDir = path.join(root, "site", "assets");
+    const indexPath = path.join(assetsDir, "search-index.json");
+    const indexJsPath = path.join(assetsDir, "search-index.js");
+    expect(fs.existsSync(indexPath)).toBe(true);
+    expect(fs.existsSync(indexJsPath)).toBe(true);
+    const index = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
+    expect(index.documents).toHaveLength(2);
+    expect(index.documents.map((d: { id: string }) => d.id).sort()).toEqual([
+      "guide.html",
+      "index.html"
+    ]);
+    expect(index.documents.some((d: { text: string }) => d.text.includes("Welcome"))).toBe(true);
+    expect(fs.readFileSync(indexJsPath, "utf-8")).toContain("__MKDOCSGEN_SEARCH_INDEX__");
+  });
+
   it("--cleanで出力ディレクトリ内のゴミファイルを消す", async () => {
     // 事前クリアが効くこと
     const { root, configPath } = createBuildProject();

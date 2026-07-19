@@ -7,6 +7,7 @@ import { copyAssets } from "../render/assets.js";
 import { Renderer } from "../render/renderer.js";
 import { assignPrevNext, buildNav } from "../scanner/nav.js";
 import { scanPages } from "../scanner/scan.js";
+import { buildSearchIndex, writeSearchIndex } from "../search/index.js";
 import type { BuildContext, Page } from "../types.js";
 import { validateLinks } from "./validate-links.js";
 
@@ -91,9 +92,11 @@ export async function runBuild(options: BuildOptions, logger: Logger): Promise<B
   // 4.5 内部リンク検証（切れは警告。strictはサマリ後に判定）
   validateLinks(pages, logger);
 
-  // 5. アセットをコピーし、全ページをレンダリングして書き出す
+  // 5. アセットをコピーし、検索インデックスを書き出し、全ページをレンダリングする
   fs.mkdirSync(config.outputDirAbs, { recursive: true });
   copyAssets(config);
+  // クライアント検索用に全ページのテキストをsearch-index.jsonへ出す
+  writeSearchIndex(config.outputDirAbs, buildSearchIndex(pages));
   const renderer = new Renderer(config);
   const context: BuildContext = { config, pages, nav: navResult.nav };
   for (const page of pages) {

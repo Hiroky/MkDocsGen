@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "example:build": "tsx src/cli/index.ts build --config examples/phase5-demo/mkdocsgen.yml --clean"
   },
   "dependencies": {
     "chokidar": "^3.6.0",

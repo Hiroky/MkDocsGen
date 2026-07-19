@@ -1,5 +1,6 @@
-{# 検索UI枠のみ（フェーズ7で実装。inputはdisabled） #}
-<div class="search" data-search>
+{# ヘッダー全文検索（MiniSearch・遅延ロード。file://でも動作） #}
+<div class="search" data-search data-root="{{ root }}" data-index-url="{{ root }}assets/search-index.js">
   <label class="visually-hidden" for="site-search">検索</label>
-  <input id="site-search" class="search-input" type="search" placeholder="検索（準備中）" disabled>
+  <input id="site-search" class="search-input" type="search" placeholder="検索" autocomplete="off" aria-autocomplete="list" aria-controls="search-results" aria-expanded="false">
+  <div id="search-results" class="search-results" role="listbox" hidden></div>
 </div>

@@ -40,6 +40,19 @@ describe("copyAssets", () => {
     expect(fs.statSync(mermaidPath).size).toBeGreaterThan(0);
   });
 
+  it("minisearch.min.jsをoutput/assetsへコピーする", () => {
+    // 検索の遅延ロード用UMDが同梱されること
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
+
+    copyAssets(fixture.config);
+
+    const minisearchPath = path.join(fixture.config.outputDirAbs, "assets", "minisearch.min.js");
+    expect(fs.existsSync(minisearchPath)).toBe(true);
+    expect(fs.statSync(minisearchPath).size).toBeGreaterThan(0);
+  });
+
   it("custom_cssをassets/customへコピーし相対パス一覧を返す", () => {
     // 追加CSSの注入経路を確認する
     const fixture = createRenderFixture();
