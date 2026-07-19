@@ -1,14 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { loadConfig } from "../config/load.js";
+import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
 import { createConverter } from "../markdown/convert.js";
 import { copyAssets } from "../render/assets.js";
 import { Renderer } from "../render/renderer.js";
 import { assignPrevNext, buildNav } from "../scanner/nav.js";
-import { scanPages } from "../scanner/scan.js";
+import { scanPages, type PageSource } from "../scanner/scan.js";
 import { buildSearchIndex, writeSearchIndex } from "../search/index.js";
-import type { BuildContext, Page } from "../types.js";
+import type { BuildContext, NavNode, Page } from "../types.js";
 import { validateLinks } from "./validate-links.js";
 
 /** buildコマンドのオプション */
@@ -24,6 +25,17 @@ export interface BuildResult {
   pageCount: number;
   warnCount: number;
   durationMs: number;
+}
+
+/** サイト生成の詳細結果（serveの増分ビルドが状態を引き継ぐために使う） */
+export interface SiteBuildOutput {
+  result: BuildResult;
+  pages: Page[];
+  nav: NavNode[];
+  /** nav影響判定用。sourcePath/title/orderの一覧シグネチャ */
+  navSignature: string;
+  /** 再利用可能なMarkdown変換器 */
+  converter: Awaited<ReturnType<typeof createConverter>>;
 }
 
 /**
@@ -42,17 +54,15 @@ export class BuildError extends Error
 }
 
 /**
- * ビルド全体を実行する。CLIから呼ばれる唯一の入口
+ * ビルド全体を実行する。CLIから呼ばれる入口
  */
 export async function runBuild(options: BuildOptions, logger: Logger): Promise<BuildResult>
 {
-  const startedAt = Date.now();
-
-  // 1. 設定を読み込む（失敗時はConfigErrorがそのまま上へ伝播しCLIが表示する）
+  // 設定を読み込む（失敗時はConfigErrorがそのまま上へ伝播しCLIが表示する）
   const config = loadConfig(options.configPath);
   logger.debug(`設定を読み込みました: ${config.configPath}`);
 
-  // 2. --clean指定時は出力ディレクトリを空にする
+  // --clean指定時は出力ディレクトリを空にする
   if (options.clean) {
     // 誤爆防止のため、危険な出力パスは削除前に拒否する
     assertOutputDirSafe(config.configDir, config.outputDirAbs, config.docsDirAbs);
@@ -60,15 +70,80 @@ export async function runBuild(options: BuildOptions, logger: Logger): Promise<B
     logger.debug(`出力ディレクトリを削除しました: ${config.outputDirAbs}`);
   }
 
-  // 3. ページ走査 → ナビ構築 → prev/next割り当て
+  // 実体のサイト生成へ委譲する
+  const output = await buildSite(config, logger, { strict: options.strict });
+  return output.result;
+}
+
+/**
+ * 解決済み設定からサイトをフル生成する（serveからも再利用する）
+ */
+export async function buildSite(
+  config: ResolvedConfig,
+  logger: Logger,
+  options: {
+    strict: boolean;
+    silentSummary?: boolean;
+    converter?: Awaited<ReturnType<typeof createConverter>>;
+  } = { strict: false }
+): Promise<SiteBuildOutput>
+{
+  const startedAt = Date.now();
+
+  // ページ走査 → ナビ構築 → prev/next割り当て
   const sources = scanPages(config, logger);
   logger.debug(`走査ページ数: ${sources.length}`);
   const navResult = buildNav(sources, config, logger);
-  const relations = assignPrevNext(navResult.orderedPages);
+  const converted = await convertSourcesToPages(
+    config, logger, navResult.orderedPages, navResult, options.converter
+  );
+  const pages = converted.pages;
 
-  // 4. 各ページをMarkdown変換してPage[]を完成させる
-  const converter = await createConverter(config, logger);
-  const pages: Page[] = navResult.orderedPages.map((source) => {
+  // 内部リンク検証（切れは警告。strictはサマリ後に判定）
+  validateLinks(pages, logger);
+
+  // アセット・検索インデックス・全ページHTMLを書き出す
+  writeFullSite(config, pages, navResult.nav, logger);
+
+  // サマリを表示し、strict判定を行う
+  const result: BuildResult = {
+    pageCount: pages.length,
+    warnCount: logger.getWarnCount(),
+    durationMs: Date.now() - startedAt
+  };
+  if (!options.silentSummary) {
+    const durationSec = (result.durationMs / 1000).toFixed(2);
+    logger.info(`${result.pageCount}ページを出力 (警告${result.warnCount}件, ${durationSec}秒)`);
+  }
+
+  if (options.strict && result.warnCount > 0) {
+    throw new BuildError("strictモード: 警告があるためビルドを失敗させます");
+  }
+
+  return {
+    result,
+    pages,
+    nav: navResult.nav,
+    navSignature: computeNavSignature(navResult.orderedPages),
+    converter: converted.converter
+  };
+}
+
+/**
+ * PageSource列をMarkdown変換してPage[]にする
+ */
+export async function convertSourcesToPages(
+  config: ResolvedConfig,
+  logger: Logger,
+  orderedPages: PageSource[],
+  navResult: { breadcrumbsMap: Map<string, Page["breadcrumbs"]>; nav: NavNode[] },
+  existingConverter?: Awaited<ReturnType<typeof createConverter>>
+): Promise<{ pages: Page[]; converter: Awaited<ReturnType<typeof createConverter>> }>
+{
+  const relations = assignPrevNext(orderedPages);
+  // serveの増分ではShiki初期化済みコンバータを再利用し、毎回の起動コストを避ける
+  const converter = existingConverter ?? await createConverter(config, logger);
+  const pages = orderedPages.map((source) => {
     const converted = converter.convert(source.markdown, source.sourcePath);
     const relation = relations.get(source.sourcePath) ?? { prev: null, next: null };
     return {
@@ -88,40 +163,57 @@ export async function runBuild(options: BuildOptions, logger: Logger): Promise<B
       breadcrumbs: navResult.breadcrumbsMap.get(source.sourcePath) ?? []
     };
   });
+  return { pages, converter };
+}
 
-  // 4.5 内部リンク検証（切れは警告。strictはサマリ後に判定）
-  validateLinks(pages, logger);
-
-  // 5. アセットをコピーし、検索インデックスを書き出し、全ページをレンダリングする
+/**
+ * アセット・検索インデックス・全ページHTMLを出力する
+ */
+export function writeFullSite(
+  config: ResolvedConfig,
+  pages: Page[],
+  nav: NavNode[],
+  logger: Logger
+): void
+{
   fs.mkdirSync(config.outputDirAbs, { recursive: true });
   copyAssets(config);
-  // クライアント検索用に全ページのテキストをsearch-index.jsonへ出す
   writeSearchIndex(config.outputDirAbs, buildSearchIndex(pages));
   const renderer = new Renderer(config);
-  const context: BuildContext = { config, pages, nav: navResult.nav };
+  const context: BuildContext = { config, pages, nav };
   for (const page of pages) {
-    const html = renderer.renderPage(page, context);
-    const outFile = path.join(config.outputDirAbs, page.outputPath);
-    // ネストした出力パスのため親ディレクトリを先に作る
-    fs.mkdirSync(path.dirname(outFile), { recursive: true });
-    fs.writeFileSync(outFile, html, "utf-8");
-    logger.debug(`出力: ${page.outputPath}`);
+    writePageHtml(config, page, context, renderer, logger);
   }
+}
 
-  // 6. サマリを表示し、strict判定を行う
-  const result: BuildResult = {
-    pageCount: pages.length,
-    warnCount: logger.getWarnCount(),
-    durationMs: Date.now() - startedAt
-  };
-  const durationSec = (result.durationMs / 1000).toFixed(2);
-  logger.info(`${result.pageCount}ページを出力 (警告${result.warnCount}件, ${durationSec}秒)`);
+/**
+ * 1ページ分のHTMLを出力ファイルへ書き出す
+ */
+export function writePageHtml(
+  config: ResolvedConfig,
+  page: Page,
+  context: BuildContext,
+  renderer: Renderer,
+  logger: Logger
+): void
+{
+  const html = renderer.renderPage(page, context);
+  const outFile = path.join(config.outputDirAbs, page.outputPath);
+  // ネストした出力パスのため親ディレクトリを先に作る
+  fs.mkdirSync(path.dirname(outFile), { recursive: true });
+  fs.writeFileSync(outFile, html, "utf-8");
+  logger.debug(`出力: ${page.outputPath}`);
+}
 
-  if (options.strict && result.warnCount > 0) {
-    throw new BuildError("strictモード: 警告があるためビルドを失敗させます");
-  }
-
-  return result;
+/**
+ * nav影響判定用にページ一覧のシグネチャ文字列を作る
+ */
+export function computeNavSignature(sources: PageSource[]): string
+{
+  // sourcePath / title / order が変わるとサイドバー全体が変わる
+  return sources
+    .map((source) => `${source.sourcePath}\0${source.title}\0${source.order ?? ""}`)
+    .join("\n");
 }
 
 /**

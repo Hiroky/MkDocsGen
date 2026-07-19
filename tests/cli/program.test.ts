@@ -26,12 +26,13 @@ describe("createProgram", () => {
     expect(flags).toContain("--verbose");
   });
 
-  it("serveコマンドに --port / --config オプションが定義されている", () => {
+  it("serveコマンドに --port / --config / --verbose オプションが定義されている", () => {
     // 仕様書2.2.3で定められた開発サーバーオプションが揃っていることを確認する
     const program = createProgram();
     const serve = program.commands.find((command) => command.name() === "serve");
     const flags = serve?.options.map((option) => option.long) ?? [];
     expect(flags).toContain("--port");
     expect(flags).toContain("--config");
+    expect(flags).toContain("--verbose");
   });
 });

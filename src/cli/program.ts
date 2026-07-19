@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { BuildError, runBuild } from "../build/pipeline.js";
 import { ConfigError } from "../config/load.js";
 import { Logger } from "../logger.js";
+import { runServe } from "../server/serve.js";
 import { runInit } from "./init.js";
 
 /**
@@ -66,11 +67,37 @@ export function createProgram(): Command
   program
     .command("serve")
     .description("開発用サーバーを起動する")
-    .option("--port <number>", "待ち受けポート番号", "3000")
+    .option("--port <number>", "待ち受けポート番号")
     .option("--config <path>", "設定ファイルのパス", "./mkdocsgen.yml")
-    .action(() => {
-      // 本体はまだ実装していないため、現段階では案内メッセージのみ表示する
-      console.log("serve コマンドは未実装です");
+    .option("--verbose", "デバッグログを出力する", false)
+    .action(async (options: {
+      port?: string;
+      config: string;
+      verbose: boolean;
+    }) => {
+      const logger = new Logger(options.verbose);
+      try {
+        // --port未指定時は設定のserve.portを使う。指定時は数値へ変換する
+        const port = options.port !== undefined ? Number(options.port) : undefined;
+        if (port !== undefined && (!Number.isInteger(port) || port < 0 || port > 65535)) {
+          throw new ConfigError(`不正なポート番号です: ${options.port}`);
+        }
+        await runServe({
+          configPath: options.config,
+          ...(port !== undefined ? { port } : {}),
+          verbose: options.verbose
+        }, logger);
+        // サーバーは常駐するため、ここではreturnせずイベントループを維持する
+      } catch (error) {
+        if (error instanceof ConfigError || error instanceof BuildError) {
+          logger.error(error.message);
+        } else if (error instanceof Error) {
+          logger.error(error.stack ?? error.message);
+        } else {
+          logger.error(String(error));
+        }
+        process.exitCode = 1;
+      }
     });
 
   return program;

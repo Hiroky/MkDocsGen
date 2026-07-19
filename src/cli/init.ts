@@ -130,5 +130,5 @@ mkdocsgen build
 ## 次の一歩
 
 - Markdownを編集して再度ビルドする
-- \`mkdocsgen serve\` でライブリロード開発を行う（実装後）
+- \`mkdocsgen serve\` でライブリロード開発を行う
 `;
