@@ -25,9 +25,30 @@ export function findPydocDirectives(markdown: string): PydocDirective[]
     running += lines[i]!.length + (i < lines.length - 1 ? 1 : 0);
   }
 
+  // コードフェンス内の ::: pydoc はドキュメント例なので検出しない（Admonitionと同じ方針）
+  let openFence: { marker: string; length: number } | null = null;
   let i = 0;
   while (i < lines.length) {
     const line = lines[i]!;
+    const trimmed = line.trim();
+
+    if (openFence !== null) {
+      // 開いているフェンスの閉じ行ならフェンス外へ戻る
+      if (isFenceClose(trimmed, openFence.marker, openFence.length)) {
+        openFence = null;
+      }
+      i += 1;
+      continue;
+    }
+
+    // フェンス開始行なら、閉じるまで ::: pydoc を見ない
+    const fenceOpen = matchFenceOpen(trimmed);
+    if (fenceOpen !== null) {
+      openFence = fenceOpen;
+      i += 1;
+      continue;
+    }
+
     const openMatch = line.match(/^:::[\t ]+pydoc[\t ]+(\S+)[\t ]*$/);
     if (!openMatch) {
       i += 1;
@@ -121,4 +142,30 @@ function parseOptions(optionLines: string[]): PydocDirectiveOptions
   }
 
   return options;
+}
+
+/**
+ * コードフェンス開始行ならマーカー文字と長さを返す
+ */
+function matchFenceOpen(line: string): { marker: string; length: number } | null
+{
+  // CommonMark: 行頭の3つ以上の ` または ~
+  const match = line.match(/^(`{3,}|~{3,})/);
+  if (!match) {
+    return null;
+  }
+  const fence = match[1]!;
+  return { marker: fence[0]!, length: fence.length };
+}
+
+/**
+ * 開いているフェンスに対応する閉じ行かどうかを判定する
+ */
+function isFenceClose(line: string, marker: string, minLength: number): boolean
+{
+  // 閉じは同じ文字がminLength以上で、その後は空白のみ
+  const re = marker === "`"
+    ? new RegExp(`^\`{${minLength},}\\s*$`)
+    : new RegExp(`^~{${minLength},}\\s*$`);
+  return re.test(line);
 }

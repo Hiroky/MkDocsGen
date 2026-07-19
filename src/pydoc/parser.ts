@@ -36,67 +36,72 @@ export function parsePythonModule(
 {
   // tree-sitter で構文木を構築する
   const tree = pythonParser.parse(source);
-  const root = tree.rootNode;
+  try {
+    const root = tree.rootNode;
 
-  // 構文エラーがある場合はディレクティブをスキップさせるため失敗を返す
-  if (root.hasError) {
-    return {
-      ok: false,
-      message: `Python構文エラー: ${modulePath}`
-    };
-  }
+    // 構文エラーがある場合はディレクティブをスキップさせるため失敗を返す
+    if (root.hasError) {
+      return {
+        ok: false,
+        message: `Python構文エラー: ${modulePath}`
+      };
+    }
 
-  const classes: PyClassDoc[] = [];
-  const functions: PyFunctionDoc[] = [];
+    const classes: PyClassDoc[] = [];
+    const functions: PyFunctionDoc[] = [];
 
-  // モジュール先頭の docstring を取る（最初の式が文字列のとき）
-  const moduleDocstring = extractLeadingDocstring(root);
+    // モジュール先頭の docstring を取る（最初の式が文字列のとき）
+    const moduleDocstring = extractLeadingDocstring(root);
 
-  // モジュール直下のクラス・関数（デコレータ付き含む）を走査する
-  for (let i = 0; i < root.namedChildCount; i++) {
-    const child = root.namedChild(i);
-    if (!child) {
-      continue;
-    }
-    // 先頭 docstring の expression_statement はメンバーではない
-    if (child.type === "expression_statement" && i === 0 && moduleDocstring) {
-      continue;
-    }
-    if (child.type === "class_definition") {
-      classes.push(extractClass(child));
-      continue;
-    }
-    if (child.type === "function_definition") {
-      functions.push(extractFunction(child));
-      continue;
-    }
-    if (child.type === "decorated_definition") {
-      // デコレータ付き定義は内側の実体を見て振り分ける
-      const inner = findDefinition(child);
-      const decorators = extractDecorators(child);
-      if (inner?.type === "class_definition") {
-        const cls = extractClass(inner);
-        // クラス自体のデコレータは仕様上必須ではないが保持はしない（メソッド側で使う）
-        classes.push(cls);
-      } else if (inner?.type === "function_definition") {
-        const fn = extractFunction(inner);
-        fn.decorators = decorators;
-        // デコレータ反映後にシグネチャ表示を更新する
-        fn.signature = formatSignature(fn.name, fn.params, fn.returns, fn.decorators);
-        functions.push(fn);
+    // モジュール直下のクラス・関数（デコレータ付き含む）を走査する
+    for (let i = 0; i < root.namedChildCount; i++) {
+      const child = root.namedChild(i);
+      if (!child) {
+        continue;
+      }
+      // 先頭 docstring の expression_statement はメンバーではない
+      if (child.type === "expression_statement" && i === 0 && moduleDocstring) {
+        continue;
+      }
+      if (child.type === "class_definition") {
+        classes.push(extractClass(child));
+        continue;
+      }
+      if (child.type === "function_definition") {
+        functions.push(extractFunction(child));
+        continue;
+      }
+      if (child.type === "decorated_definition") {
+        // デコレータ付き定義は内側の実体を見て振り分ける
+        const inner = findDefinition(child);
+        const decorators = extractDecorators(child);
+        if (inner?.type === "class_definition") {
+          const cls = extractClass(inner);
+          // クラス自体のデコレータは仕様上必須ではないが保持はしない（メソッド側で使う）
+          classes.push(cls);
+        } else if (inner?.type === "function_definition") {
+          const fn = extractFunction(inner);
+          fn.decorators = decorators;
+          // デコレータ反映後にシグネチャ表示を更新する
+          fn.signature = formatSignature(fn.name, fn.params, fn.returns, fn.decorators);
+          functions.push(fn);
+        }
       }
     }
-  }
 
-  return {
-    ok: true,
-    module: {
-      modulePath,
-      docstring: moduleDocstring,
-      classes,
-      functions
-    }
-  };
+    return {
+      ok: true,
+      module: {
+        modulePath,
+        docstring: moduleDocstring,
+        classes,
+        functions
+      }
+    };
+  } finally {
+    // serve 長時間運用で WASM ヒープが積み上がらないよう構文木を解放する
+    tree.delete();
+  }
 }
 
 /**

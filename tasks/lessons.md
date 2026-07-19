@@ -48,3 +48,8 @@
 - **事象**: 増分ビルドが書き込みだけ差分で変換は全ページ、serve増分でbuildEnd連打、プラグインESMキャッシュ固定、transform戻り値未検証、不正%で500
 - **原因**: 「再出力」と「再変換」を同一視した。副作用フックをserve経路にも載せた。動的importのキャッシュと戻り値契約を考慮不足
 - **ルール**: 増分は変更ページのみconvert。buildEndはCLIのrunBuild（mkdocsgen build）のみで、serveのfullBuild/増分ではスキップ。プラグインimportはmtimeクエリでキャッシュ破棄。transformはstring検証。decodeURIComponent失敗は400
+
+- **日付**: 2026-07-19
+- **事象**: PyDocがフェンス内 `::: pydoc` を誤展開、`startsWith("_")` で `__init__` も隠す、深いheading-levelでアンカー欠落、マッチ失敗時にHTML id未更新
+- **原因**: Admonitionのフェンススキップをpydoc検出に再利用しなかった。仕様の「_始まり」を字面どおり実装しdunderを考慮しなかった。レベル上限とアンカーマージのフォールバックが不足
+- **ルール**: コンテナ/`::: `検出はフェンス内スキップ必須。private判定は単一`_`のみ（dunderは公開）。見出しレベルは1–6クランプ。アンカーマージはテキスト一致→HTML挿入までフォールバック。tree-sitterのTreeはdeleteする

@@ -140,4 +140,29 @@ describe("mergePydocHeadings", () => {
       "mypackage.mymodule.Greeter.shout"
     ]);
   });
+
+  it("見出しマッチ失敗時もHTMLに仕様アンカーを挿入する", () => {
+    // リンク検証だけでなく実ジャンプ用の id も保証する
+    const merged = mergePydocHeadings(
+      "<p>no headings</p>",
+      [],
+      [],
+      [{ level: 4, text: "orphan", anchorId: "pkg.mod.orphan" }]
+    );
+    expect(merged.anchorIds).toContain("pkg.mod.orphan");
+    expect(merged.html).toContain('id="pkg.mod.orphan"');
+  });
+
+  it("headings未登録のh1でもテキスト一致でidを差し替える", () => {
+    // convert は h1 を headings に入れないため、HTML直接マッチが必要
+    const merged = mergePydocHeadings(
+      '<h1 id="mymodule">mymodule</h1>\n<p>body</p>',
+      [],
+      ["mymodule"],
+      [{ level: 1, text: "mymodule", anchorId: "pkg.mymodule" }]
+    );
+    expect(merged.html).toContain('<h1 id="pkg.mymodule">mymodule</h1>');
+    expect(merged.html).not.toContain('id="mymodule"');
+    expect(merged.anchorIds).toEqual(["pkg.mymodule"]);
+  });
 });

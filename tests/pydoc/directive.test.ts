@@ -38,4 +38,28 @@ describe("parsePydocDirectiveBlock / findPydocDirectives", () => {
     expect(markdown.slice(found[0]!.start, found[0]!.end)).toContain(":::");
     expect(markdown.slice(found[0]!.start, found[0]!.end)).toContain("members: A");
   });
+
+  it("コードフェンス内の ::: pydoc は検出しない", () => {
+    // ドキュメント例が誤展開・ビルド失敗しないよう Admonition と同様にスキップする
+    const markdown = [
+      "説明",
+      "",
+      "```markdown",
+      "::: pydoc example.mod",
+      "```",
+      "",
+      "::: pydoc real.mod",
+      ""
+    ].join("\n");
+    const found = findPydocDirectives(markdown);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.modulePath).toBe("real.mod");
+  });
+
+  it("~~~ フェンス内の ::: pydoc も検出しない", () => {
+    const markdown = "~~~\n::: pydoc inside.fence\n~~~\n\n::: pydoc outside.mod\n";
+    const found = findPydocDirectives(markdown);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.modulePath).toBe("outside.mod");
+  });
 });

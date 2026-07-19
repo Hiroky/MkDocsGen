@@ -85,8 +85,7 @@ export function mergePydocHeadings(
   const used = new Set<number>();
 
   for (const extra of extraHeadings) {
-    // 目次対象外の h1 も HTML 上の id 置換対象になり得るが、convert は h1 を headings に入れない
-    // そのため headings マッチに加え、HTML の id を直接書き換える
+    // 同一テキスト・レベルの見出しを出現順に対応付ける
     let matchedIndex = -1;
     for (let i = 0; i < nextHeadings.length; i++) {
       if (used.has(i)) {
@@ -96,6 +95,19 @@ export function mergePydocHeadings(
       if (heading.text === extra.text && heading.level === extra.level) {
         matchedIndex = i;
         break;
+      }
+    }
+
+    // レベル不一致（クランプ前後など）でもテキスト一致でフォールバックする
+    if (matchedIndex < 0) {
+      for (let i = 0; i < nextHeadings.length; i++) {
+        if (used.has(i)) {
+          continue;
+        }
+        if (nextHeadings[i]!.text === extra.text) {
+          matchedIndex = i;
+          break;
+        }
       }
     }
 
@@ -115,9 +127,31 @@ export function mergePydocHeadings(
       } else if (!nextAnchorIds.includes(extra.anchorId)) {
         nextAnchorIds.push(extra.anchorId);
       }
-    } else if (!nextAnchorIds.includes(extra.anchorId)) {
-      // 見出しマッチできなくてもリンク検証用に仕様IDは残す
-      nextAnchorIds.push(extra.anchorId);
+    } else {
+      // headings 配列に無い場合（h1 など）でも、同名見出しの id を仕様IDへ差し替える
+      const replaced = replaceHeadingIdByText(nextHtml, extra.text, extra.anchorId);
+      if (replaced !== null) {
+        nextHtml = replaced.html;
+        // 旧slugを検証一覧から落とし、仕様IDへ置き換える
+        if (replaced.oldId) {
+          const oldPos = nextAnchorIds.indexOf(replaced.oldId);
+          if (oldPos >= 0) {
+            nextAnchorIds[oldPos] = extra.anchorId;
+          } else if (!nextAnchorIds.includes(extra.anchorId)) {
+            nextAnchorIds.push(extra.anchorId);
+          }
+        } else if (!nextAnchorIds.includes(extra.anchorId)) {
+          nextAnchorIds.push(extra.anchorId);
+        }
+      } else if (!htmlHasId(nextHtml, extra.anchorId)) {
+        // どうしても見つからないときだけ空アンカーを末尾に足す
+        nextHtml += `\n<a id="${escapeHtmlAttr(extra.anchorId)}"></a>\n`;
+        if (!nextAnchorIds.includes(extra.anchorId)) {
+          nextAnchorIds.push(extra.anchorId);
+        }
+      } else if (!nextAnchorIds.includes(extra.anchorId)) {
+        nextAnchorIds.push(extra.anchorId);
+      }
     }
   }
 
@@ -131,7 +165,60 @@ function replaceHeadingId(html: string, oldId: string, newId: string): string
 {
   // 属性値の完全一致だけを1回置換する（他要素の誤爆を避ける）
   const pattern = new RegExp(`id="${escapeRegExp(oldId)}"`, "u");
-  return html.replace(pattern, `id="${newId}"`);
+  return html.replace(pattern, `id="${escapeHtmlAttr(newId)}"`);
+}
+
+/**
+ * 見出しテキストが一致する最初の h1〜h6 の id を仕様IDへ差し替える
+ */
+function replaceHeadingIdByText(
+  html: string,
+  text: string,
+  newId: string
+): { html: string; oldId: string | null } | null
+{
+  // convert が h1 を headings に入れないケースでも実アンカーを直す
+  const pattern = new RegExp(
+    `<(h[1-6])(\\s[^>]*)?>${escapeRegExp(text)}</\\1>`,
+    "u"
+  );
+  const match = pattern.exec(html);
+  if (!match) {
+    return null;
+  }
+  const tag = match[1]!;
+  const attrs = match[2] ?? "";
+  const safeId = escapeHtmlAttr(newId);
+  const oldIdMatch = attrs.match(/\sid="([^"]*)"/u);
+  const oldId = oldIdMatch?.[1] ?? null;
+  let nextAttrs: string;
+  if (oldIdMatch) {
+    // 既存 id を上書きする
+    nextAttrs = attrs.replace(/\sid="[^"]*"/u, ` id="${safeId}"`);
+  } else {
+    nextAttrs = `${attrs} id="${safeId}"`;
+  }
+  const replacement = `<${tag}${nextAttrs}>${text}</${tag}>`;
+  return {
+    html: html.slice(0, match.index) + replacement + html.slice(match.index + match[0].length),
+    oldId
+  };
+}
+
+/**
+ * HTMLに指定 id が既にあるか判定する
+ */
+function htmlHasId(html: string, id: string): boolean
+{
+  return new RegExp(`id="${escapeRegExp(id)}"`, "u").test(html);
+}
+
+/**
+ * HTML属性値用に最低限エスケープする
+ */
+function escapeHtmlAttr(value: string): string
+{
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
 /**

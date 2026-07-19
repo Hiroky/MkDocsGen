@@ -87,7 +87,7 @@ function renderClass(
   appendDocstring(parts, cls.docstring, new Map());
 
   if (cls.attributes.length > 0) {
-    const attrs = cls.attributes.filter((a) => showPrivate || !a.name.startsWith("_"));
+    const attrs = cls.attributes.filter((a) => showPrivate || !isPrivateMember(a.name));
     if (attrs.length > 0) {
       parts.push("**Attributes**", "");
       parts.push("| Name | Type |", "| --- | --- |");
@@ -98,7 +98,7 @@ function renderClass(
     }
   }
 
-  const methods = cls.methods.filter((m) => showPrivate || !m.name.startsWith("_"));
+  const methods = cls.methods.filter((m) => showPrivate || !isPrivateMember(m.name));
   for (const method of methods) {
     renderFunction(parts, extraHeadings, modulePath, method, moduleHeadingLevel + 2, cls.name);
   }
@@ -184,16 +184,24 @@ function pushHeading(
   anchorId: string
 ): void
 {
-  // Markdown見出しは短い表示名。目次・リンク用IDは extraHeadings で上書きする
-  const marks = "#".repeat(Math.min(Math.max(level, 1), 6));
+  // Markdown / 目次とも 1〜6 に収める（深い heading-level でも仕様アンカーを落とさない）
+  const clamped = Math.min(Math.max(level, 1), 6);
+  const marks = "#".repeat(clamped);
   parts.push(`${marks} ${text}`, "");
-  // 目次は h2〜h6 のみ（既存 convert と同じ）。level 1 も仕様上あり得るが目次外
-  if (level >= 2 && level <= 6) {
-    extraHeadings.push({ level, text, anchorId });
-  } else if (level === 1) {
-    // h1 は目次に出さないが、リンク検証用に anchorId だけ後段で拾えるよう保持する
-    extraHeadings.push({ level: 1, text, anchorId });
+  // 目次は h2〜h6（既存 convert と同じ）。h1 もリンク検証用に保持する
+  extraHeadings.push({ level: clamped, text, anchorId });
+}
+
+/**
+ * 単一 _ 始まりの private かどうか。dunder（__init__ 等）は公開扱い
+ */
+export function isPrivateMember(name: string): boolean
+{
+  // __name__ 形式は特殊メソッドとしてデフォルト表示する
+  if (name.length > 4 && name.startsWith("__") && name.endsWith("__")) {
+    return false;
   }
+  return name.startsWith("_");
 }
 
 /**
@@ -205,7 +213,7 @@ function filterMembers<T extends { name: string }>(
 ): T[]
 {
   return items.filter((item) => {
-    if (!options.showPrivate && item.name.startsWith("_")) {
+    if (!options.showPrivate && isPrivateMember(item.name)) {
       return false;
     }
     if (options.members !== null && !options.members.includes(item.name)) {

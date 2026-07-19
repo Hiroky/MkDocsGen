@@ -29,6 +29,25 @@ describe("renderModuleDoc", () => {
         },
         methods: [
           {
+            name: "__init__",
+            signature: "def __init__(self, name: str) -> None",
+            params: [
+              { name: "self", type: null, default: null },
+              { name: "name", type: "str", default: null }
+            ],
+            returns: "None",
+            decorators: [],
+            docstring: {
+              summary: "Create a greeter.",
+              body: "",
+              args: [{ name: "name", type: null, description: "Person name." }],
+              returns: null,
+              raises: [],
+              examples: [],
+              notes: []
+            }
+          },
+          {
             name: "shout",
             signature: "@staticmethod\ndef shout(text: str) -> str",
             params: [{ name: "text", type: "str", default: null }],
@@ -102,6 +121,9 @@ describe("renderModuleDoc", () => {
     expect(markdown).toContain("**Raises**");
     expect(markdown).toContain("::: note");
     expect(markdown).toContain("::: warning");
+    // dunder はデフォルト表示、単一 _ 始まりの private は非表示
+    expect(markdown).toContain("__init__");
+    expect(markdown).toContain("Create a greeter.");
     expect(markdown).not.toContain("_secret");
     expect(markdown).not.toContain("_hidden");
 
@@ -109,10 +131,25 @@ describe("renderModuleDoc", () => {
       expect.arrayContaining([
         { level: 2, text: "mymodule", anchorId: "mypackage.mymodule" },
         { level: 3, text: "Greeter", anchorId: "mypackage.mymodule.Greeter" },
+        { level: 4, text: "__init__", anchorId: "mypackage.mymodule.Greeter.__init__" },
         { level: 4, text: "shout", anchorId: "mypackage.mymodule.Greeter.shout" },
         { level: 4, text: "greet", anchorId: "mypackage.mymodule.greet" }
       ])
     );
+  });
+
+  it("heading-level が深くても見出しレベルを6に収め extraHeadings に載せる", () => {
+    // heading-level:5 でもメソッドが level7 にならず、仕様アンカーが付くこと
+    const { markdown, extraHeadings } = renderModuleDoc(sample, {
+      members: ["Greeter"],
+      showPrivate: false,
+      headingLevel: 5
+    });
+    expect(markdown).toContain("##### mymodule");
+    expect(markdown).toContain("###### Greeter");
+    expect(markdown).toContain("###### __init__");
+    expect(extraHeadings.every((h) => h.level >= 1 && h.level <= 6)).toBe(true);
+    expect(extraHeadings.some((h) => h.anchorId === "mypackage.mymodule.Greeter.__init__")).toBe(true);
   });
 
   it("members でトップレベルを絞り込める", () => {
