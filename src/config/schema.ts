@@ -21,7 +21,7 @@ const markdownSchema = z.object({
   allow_html: z.boolean().default(true)
 }).strict();
 
-/** PyDoc設定のスキーマ（MVPでは未使用だが検証のみ通す） */
+/** PyDoc設定のスキーマ */
 const pydocSchema = z.object({
   source_dirs: z.array(z.string()).default([])
 }).strict();

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  BuildError,
   buildSite,
   computeNavSignature,
   convertSourcesToPages,
@@ -11,6 +12,8 @@ import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
 import type { createConverter } from "../markdown/convert.js";
 import type { Plugin } from "../plugin/types.js";
+import { ModuleResolveError } from "../pydoc/resolve.js";
+import type { PythonParser } from "../pydoc/tree-sitter.js";
 import { Renderer } from "../render/renderer.js";
 import { buildNav } from "../scanner/nav.js";
 import { scanPages } from "../scanner/scan.js";
@@ -30,6 +33,8 @@ export interface DevBuildState {
   converter: MarkdownConverter;
   /** 増分ビルドで再利用するプラグイン */
   plugins: Plugin[];
+  /** 増分ビルドで再利用するPythonパーサ */
+  pythonParser: PythonParser;
 }
 
 /** docs変更後の再ビルド結果 */
@@ -87,7 +92,8 @@ export async function fullBuild(
   config: ResolvedConfig,
   logger: Logger,
   existingConverter?: MarkdownConverter,
-  existingPlugins?: Plugin[]
+  existingPlugins?: Plugin[],
+  existingPythonParser?: PythonParser
 ): Promise<DevBuildState>
 {
   // 既存コンバータ・プラグインがあれば渡し、再初期化を避ける
@@ -97,7 +103,8 @@ export async function fullBuild(
     strict: false,
     skipBuildEnd: true,
     ...(existingConverter ? { converter: existingConverter } : {}),
-    ...(existingPlugins ? { plugins: existingPlugins, skipConfigResolved: true } : {})
+    ...(existingPlugins ? { plugins: existingPlugins, skipConfigResolved: true } : {}),
+    ...(existingPythonParser ? { pythonParser: existingPythonParser } : {})
   });
   return {
     config,
@@ -105,7 +112,8 @@ export async function fullBuild(
     nav: output.nav,
     navSignature: output.navSignature,
     converter: output.converter,
-    plugins: output.plugins
+    plugins: output.plugins,
+    pythonParser: output.pythonParser
   };
 }
 
@@ -118,7 +126,7 @@ export async function rebuildDocs(
   logger: Logger
 ): Promise<DocsRebuildResult>
 {
-  const { config, converter, plugins } = state;
+  const { config, converter, plugins, pythonParser } = state;
   const previousOutputs = new Map(state.pages.map((page) => [page.sourcePath, page.outputPath]));
 
   // 最新のソースを走査してナビを組み直す
@@ -129,8 +137,8 @@ export async function rebuildDocs(
   // navに影響する変更（追加・削除・title/order）は全ページのサイドバーが変わるためフル再ビルド
   if (nextSignature !== state.navSignature) {
     logger.info("ナビ影響の変更を検出したためフル再ビルドします");
-    const converted = await convertSourcesToPages(
-      config, logger, navResult.orderedPages, navResult, converter, plugins
+    const converted = await convertSourcesToPagesSafe(
+      config, logger, navResult.orderedPages, navResult, converter, plugins, undefined, pythonParser
     );
     await writeFullSite(config, converted.pages, navResult.nav, logger, plugins);
     // 削除されたページの出力HTMLを取り除く
@@ -146,7 +154,8 @@ export async function rebuildDocs(
         nav: navResult.nav,
         navSignature: nextSignature,
         converter: converted.converter,
-        plugins
+        plugins,
+        pythonParser: converted.pythonParser
       }
     };
   }
@@ -157,9 +166,10 @@ export async function rebuildDocs(
   );
   const previousPages = new Map(state.pages.map((page) => [page.sourcePath, page]));
   // 変換コスト（Shiki等）も差分にするため、変更ページだけconvertする
-  const converted = await convertSourcesToPages(
+  const converted = await convertSourcesToPagesSafe(
     config, logger, navResult.orderedPages, navResult, converter, plugins,
-    { onlySourcePaths: changedSet, previousPages }
+    { onlySourcePaths: changedSet, previousPages },
+    pythonParser
   );
   const rebuiltPaths: string[] = [];
   const renderer = new Renderer(config);
@@ -188,9 +198,27 @@ export async function rebuildDocs(
       nav: navResult.nav,
       navSignature: nextSignature,
       converter: converted.converter,
-      plugins
+      plugins,
+      pythonParser: converted.pythonParser
     }
   };
+}
+
+/**
+ * convertSourcesToPages を呼び、ModuleResolveError を BuildError に変換する
+ */
+async function convertSourcesToPagesSafe(
+  ...args: Parameters<typeof convertSourcesToPages>
+): Promise<Awaited<ReturnType<typeof convertSourcesToPages>>>
+{
+  try {
+    return await convertSourcesToPages(...args);
+  } catch (error) {
+    if (error instanceof ModuleResolveError) {
+      throw new BuildError(error.message);
+    }
+    throw error;
+  }
 }
 
 /**

@@ -174,12 +174,12 @@ graph TD
 
 **実装内容**
 
-- [ ] web-tree-sitter + tree-sitter-python.wasm のロード基盤と性能検証（100ページ規模で10秒以内の要件に収まるか初期に確認）
-- [ ] Pythonソースの静的解析（モジュール / クラス / 関数 / メソッド / デコレーター / 型アノテーション / デフォルト値）
-- [ ] Googleスタイルdocstring解析（`Args` / `Returns` / `Yields` / `Raises` / `Examples` / `Note` / `Warning`、不正形式はプレーンテキスト許容）
-- [ ] モジュール解決（`pydoc.source_dirs` 起点、失敗時は探索パス一覧付きエラー）
-- [ ] ディレクティブ展開（`members` / `show-private` / `heading-level` オプション、アンカーID付与、シグネチャ表示）
-- [ ] Python構文エラー時の警告スキップ + ページ上へのエラー表示（`--strict` 時はエラー終了）
+- [x] web-tree-sitter + tree-sitter-python.wasm のロード基盤と性能検証（100ページ規模で10秒以内の要件に収まるか初期に確認）
+- [x] Pythonソースの静的解析（モジュール / クラス / 関数 / メソッド / デコレーター / 型アノテーション / デフォルト値）
+- [x] Googleスタイルdocstring解析（`Args` / `Returns` / `Yields` / `Raises` / `Examples` / `Note` / `Warning`、不正形式はプレーンテキスト許容）
+- [x] モジュール解決（`pydoc.source_dirs` 起点、失敗時は探索パス一覧付きエラー）
+- [x] ディレクティブ展開（`members` / `show-private` / `heading-level` オプション、アンカーID付与、シグネチャ表示）
+- [x] Python構文エラー時の警告スキップ + ページ上へのエラー表示（`--strict` 時はエラー終了）
 
 **完了条件**: 仕様書7.1のPyDoc Parser・docstring解析・pydocディレクティブ観点の単体テストが通り、フィクスチャPythonソースがHTML化される統合テストが通る。
 

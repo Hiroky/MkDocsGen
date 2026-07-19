@@ -1,0 +1,124 @@
+/**
+ * Markdown内の ::: pydoc ディレクティブを検出・パースする
+ */
+import type { PydocDirective, PydocDirectiveOptions } from "./types.js";
+
+/** デフォルトオプション */
+const DEFAULT_OPTIONS: PydocDirectiveOptions = {
+  members: null,
+  showPrivate: false,
+  headingLevel: 2
+};
+
+/**
+ * Markdown全文から ::: pydoc ディレクティブをすべて見つける
+ */
+export function findPydocDirectives(markdown: string): PydocDirective[]
+{
+  const directives: PydocDirective[] = [];
+  const lines = markdown.split("\n");
+  // 各行の開始文字オフセットを事前計算する（置換範囲の算出に使う）
+  const lineStarts: number[] = [];
+  let running = 0;
+  for (let i = 0; i < lines.length; i++) {
+    lineStarts.push(running);
+    running += lines[i]!.length + (i < lines.length - 1 ? 1 : 0);
+  }
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i]!;
+    const openMatch = line.match(/^:::[\t ]+pydoc[\t ]+(\S+)[\t ]*$/);
+    if (!openMatch) {
+      i += 1;
+      continue;
+    }
+
+    const start = lineStarts[i]!;
+    const modulePath = openMatch[1]!;
+    const optionLines: string[] = [];
+    let endLine = i;
+
+    // 続くインデント行をオプションとして取り込む
+    let j = i + 1;
+    while (j < lines.length) {
+      const next = lines[j]!;
+      // 閉じ ::: だけで終わっている場合はディレクティブ範囲に含めて消費する
+      if (/^:::[\t ]*$/.test(next)) {
+        endLine = j;
+        j += 1;
+        break;
+      }
+      // インデントされた key: value 行だけをオプションとする
+      if (/^[ \t]+\S/.test(next)) {
+        optionLines.push(next);
+        endLine = j;
+        j += 1;
+        continue;
+      }
+      break;
+    }
+
+    // end は endLine の行末（最終行でなければ改行も含む）
+    const end = endLine < lines.length - 1
+      ? lineStarts[endLine]! + lines[endLine]!.length + 1
+      : lineStarts[endLine]! + lines[endLine]!.length;
+
+    directives.push({
+      modulePath,
+      options: parseOptions(optionLines),
+      start,
+      end
+    });
+
+    // 消費した行の次から再開する
+    i = endLine + 1;
+  }
+
+  return directives;
+}
+
+/**
+ * 単一ブロック文字列をパースする（テスト・単体利用向け）
+ */
+export function parsePydocDirectiveBlock(block: string): PydocDirective | null
+{
+  const found = findPydocDirectives(block);
+  return found[0] ?? null;
+}
+
+/**
+ * インデント行のオプションを構造化する
+ */
+function parseOptions(optionLines: string[]): PydocDirectiveOptions
+{
+  const options: PydocDirectiveOptions = { ...DEFAULT_OPTIONS };
+
+  for (const rawLine of optionLines) {
+    // 行末コメントを落とし、インデントも除去する
+    const line = rawLine.replace(/[ \t]+#.*$/, "").trim();
+    const match = line.match(/^([\w-]+)\s*:\s*(.*)$/);
+    if (!match) {
+      continue;
+    }
+    const key = match[1]!;
+    const value = match[2]!.trim();
+
+    if (key === "members") {
+      // カンマ区切りのメンバー名一覧。空なら空配列（何も出さない）
+      options.members = value.length === 0
+        ? []
+        : value.split(",").map((part) => part.trim()).filter((part) => part.length > 0);
+    } else if (key === "show-private") {
+      options.showPrivate = value.toLowerCase() === "true";
+    } else if (key === "heading-level") {
+      const level = Number.parseInt(value, 10);
+      // 1〜6の範囲に収める（不正値はデフォルト維持）
+      if (Number.isFinite(level) && level >= 1 && level <= 6) {
+        options.headingLevel = level;
+      }
+    }
+  }
+
+  return options;
+}

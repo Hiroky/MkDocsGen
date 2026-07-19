@@ -12,6 +12,9 @@ import {
 } from "../plugin/hooks.js";
 import { loadPlugins } from "../plugin/load.js";
 import type { PageMeta, Plugin } from "../plugin/types.js";
+import { expandPydocDirectives, mergePydocHeadings } from "../pydoc/expand.js";
+import { ModuleResolveError } from "../pydoc/resolve.js";
+import { createPythonParser, type PythonParser } from "../pydoc/tree-sitter.js";
 import { copyAssets } from "../render/assets.js";
 import { Renderer } from "../render/renderer.js";
 import { assignPrevNext, buildNav } from "../scanner/nav.js";
@@ -46,6 +49,8 @@ export interface SiteBuildOutput {
   converter: Awaited<ReturnType<typeof createConverter>>;
   /** 読み込み済みプラグイン（増分ビルドで再利用する） */
   plugins: Plugin[];
+  /** 再利用可能なPythonパーサ（tree-sitter WASM初期化済み） */
+  pythonParser: PythonParser;
 }
 
 /**
@@ -97,6 +102,8 @@ export async function buildSite(
     converter?: Awaited<ReturnType<typeof createConverter>>;
     /** 呼び出し側で既にロード済みのプラグイン（あれば再利用） */
     plugins?: Plugin[];
+    /** 呼び出し側で既に初期化済みのPythonパーサ（あれば再利用） */
+    pythonParser?: PythonParser;
     /** trueならconfigResolvedをスキップする */
     skipConfigResolved?: boolean;
     /** trueならbuildEndをスキップする（serve経路用。副作用プラグインの連打を防ぐ） */
@@ -119,9 +126,20 @@ export async function buildSite(
   const sources = scanPages(config, logger);
   logger.debug(`走査ページ数: ${sources.length}`);
   const navResult = buildNav(sources, config, logger);
-  const converted = await convertSourcesToPages(
-    config, logger, navResult.orderedPages, navResult, options.converter, plugins
-  );
+  // tree-sitter WASMは初回だけ初期化し、serve増分で再利用する
+  const pythonParser = options.pythonParser ?? await createPythonParser();
+  let converted: { pages: Page[]; converter: Awaited<ReturnType<typeof createConverter>> };
+  try {
+    converted = await convertSourcesToPages(
+      config, logger, navResult.orderedPages, navResult, options.converter, plugins, undefined, pythonParser
+    );
+  } catch (error) {
+    // pydocモジュール解決失敗はビルドエラーとしてメッセージをそのまま出す
+    if (error instanceof ModuleResolveError) {
+      throw new BuildError(error.message);
+    }
+    throw error;
+  }
   const pages = converted.pages;
 
   // 内部リンク検証（切れは警告。strictはサマリ後に判定）
@@ -156,7 +174,8 @@ export async function buildSite(
     nav: navResult.nav,
     navSignature: computeNavSignature(navResult.orderedPages),
     converter: converted.converter,
-    plugins
+    plugins,
+    pythonParser
   };
 }
 
@@ -175,12 +194,15 @@ export async function convertSourcesToPages(
     onlySourcePaths: Set<string>;
     /** 再利用する前回ビルドのPage一覧 */
     previousPages: Map<string, Page>;
-  }
-): Promise<{ pages: Page[]; converter: Awaited<ReturnType<typeof createConverter>> }>
+  },
+  existingPythonParser?: PythonParser
+): Promise<{ pages: Page[]; converter: Awaited<ReturnType<typeof createConverter>>; pythonParser: PythonParser }>
 {
   const relations = assignPrevNext(orderedPages);
   // serveの増分ではShiki初期化済みコンバータを再利用し、毎回の起動コストを避ける
   const converter = existingConverter ?? await createConverter(config, logger);
+  // pydoc展開用のPythonパーサも同様に再利用する
+  const pythonParser = existingPythonParser ?? await createPythonParser();
   const pages: Page[] = [];
   for (const source of orderedPages) {
     const relation = relations.get(source.sourcePath) ?? { prev: null, next: null };
@@ -209,7 +231,16 @@ export async function convertSourcesToPages(
       source.markdown,
       toPageMeta(source)
     );
-    const converted = converter.convert(markdown, source.sourcePath);
+    // ::: pydoc をAPIドキュメントMarkdownへ展開してから通常変換する
+    const expanded = expandPydocDirectives(markdown, config, logger, pythonParser);
+    const converted = converter.convert(expanded.markdown, source.sourcePath);
+    // 仕様どおりのドット区切りアンカーIDを見出し・HTML・検証用一覧へマージする
+    const merged = mergePydocHeadings(
+      converted.html,
+      converted.headings,
+      converted.anchorIds,
+      expanded.extraHeadings
+    );
     pages.push({
       sourcePath: source.sourcePath,
       outputPath: source.outputPath,
@@ -217,17 +248,17 @@ export async function convertSourcesToPages(
       title: source.title,
       description: source.description,
       frontmatter: source.frontmatter,
-      headings: converted.headings,
-      anchorIds: converted.anchorIds,
+      headings: merged.headings,
+      anchorIds: merged.anchorIds,
       links: converted.links,
-      contentHtml: converted.html,
+      contentHtml: merged.html,
       plainText: converted.plainText,
       prev: relation.prev,
       next: relation.next,
       breadcrumbs
     });
   }
-  return { pages, converter };
+  return { pages, converter, pythonParser };
 }
 
 /**

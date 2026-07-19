@@ -84,7 +84,7 @@ export async function runServe(options: ServeOptions, logger: Logger): Promise<S
         logger.info("テーマまたはpydocソースの変更を検出したためフルビルドします");
         // 変換設定は変わらないため既存コンバータを再利用する
         // テーマ/pydoc変更時は設定は同じなのでプラグインも再利用する
-        state = await fullBuild(config, logger, state.converter, state.plugins);
+        state = await fullBuild(config, logger, state.converter, state.plugins, state.pythonParser);
         staticServer.broadcast({ type: "reload" });
         return;
       }
