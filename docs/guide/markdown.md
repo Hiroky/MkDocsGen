@@ -3,8 +3,6 @@ title: Markdown拡張
 order: 4
 ---
 
-# Markdown拡張
-
 GFM に加え、Admonition・シンタックスハイライト・Mermaid をサポートします。
 
 ## Admonition

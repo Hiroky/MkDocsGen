@@ -15,6 +15,11 @@
 ## 記録
 
 - **日付**: 2026-07-19
+- **事象**: ドキュメントで page-title と本文 `#` 見出しが同じ文言で二重表示されていた
+- **原因**: テンプレートが常に h1.page-title を出すのに、docs でも先頭 `#` を書いていた
+- **ルール**: frontmatter の title をページ見出しとし、本文は `##` から始める。init 雛形も同様にする
+
+- **日付**: 2026-07-19
 - **事象**: ドロワーEscapeでフォーカス未復帰・inert未設定、検索Escapeがドロワーも閉じる、READMEがbuild前のnpx mkdocsgenを案内
 - **原因**: Escape追加時にフォーカス/inertとイベント伝播を見落とした。binがdist参照なのにクローン直後手順を省略した
 - **ルール**: オーバーレイ/ドロワー閉じはフォーカス復帰と inert/aria-hidden をセット。前面UIのEscapeは stopPropagation。READMEのnpx手順は必ず npm run build を先に書く（または npm run dev を案内）

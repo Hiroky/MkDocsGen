@@ -3,8 +3,6 @@ title: PyDoc
 order: 6
 ---
 
-# PyDoc
-
 `::: pydoc` ディレクティブで、Python モジュールの API ドキュメントをページへ展開できます。
 
 ## 設定

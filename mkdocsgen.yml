@@ -23,11 +23,11 @@ nav:
     path: guide/pydoc.md
   - title: プラグイン
     path: guide/plugins.md
-  - title: CLI
+  - title: CLIリファレンス
     path: reference/cli.md
   - title: 設定スキーマ
     path: reference/config.md
-  - title: テンプレートコンテキスト
+  - title: テンプレートコンテキスト変数
     path: reference/template-context.md
 
 exclude: []

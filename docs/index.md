@@ -4,8 +4,6 @@ description: Markdownから静的ドキュメントサイトを生成する
 order: 0
 ---
 
-# MkDocsGen
-
 Markdownファイル群から、検索・テーマ切替・APIドキュメント展開まで備えた静的ドキュメントサイトを生成します。
 
 ## 特徴

@@ -3,8 +3,6 @@ title: 設定
 order: 2
 ---
 
-# 設定
-
 設定はプロジェクトルートの `mkdocsgen.yml` に書きます。必須は `site.title` のみです。
 
 ## 最小例

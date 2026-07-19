@@ -103,7 +103,9 @@ serve:
 `;
 
 /** トップページのサンプル */
-const INDEX_MD = `# Welcome
+const INDEX_MD = `---
+title: Welcome
+---
 
 MkDocsGenへようこそ。
 
@@ -113,7 +115,9 @@ MkDocsGenへようこそ。
 `;
 
 /** 階層構造のサンプル */
-const GETTING_STARTED_MD = `# Getting Started
+const GETTING_STARTED_MD = `---
+title: Getting Started
+---
 
 ## はじめに
 

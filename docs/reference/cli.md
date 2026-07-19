@@ -1,9 +1,7 @@
 ---
-title: CLI
+title: CLIリファレンス
 order: 10
 ---
-
-# CLIリファレンス
 
 ```bash
 mkdocsgen <command> [options]
