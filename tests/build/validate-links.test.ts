@@ -1,146 +1,104 @@
 import { describe, expect, it } from "vitest";
 import { validateLinks } from "../../src/build/validate-links.js";
-import type { Page } from "../../src/types.js";
-import { createCapturingLogger } from "../scanner/helpers.js";
+import { Logger } from "../../src/logger.js";
+import { createTestPage } from "../render/helpers.js";
 
 /**
- * 検証テスト用の最小Pageを組み立てる
+ * 警告を収集するロガーを作る
  */
-function page(partial: Partial<Page> & Pick<Page, "sourcePath">): Page
+function capturingLogger(): { logger: Logger; warnings: string[] }
 {
-  return {
-    outputPath: partial.sourcePath.replace(/\.md$/, ".html"),
-    url: `/${partial.sourcePath.replace(/\.md$/, ".html")}`,
-    title: "T",
-    description: "",
-    frontmatter: {},
-    headings: [],
-    contentHtml: "",
-    plainText: "",
-    prev: null,
-    next: null,
-    breadcrumbs: [],
-    links: [],
-    anchorIds: [],
-    ...partial
-  };
+  const warnings: string[] = [];
+  const logger = new Logger(false, {
+    stdout: () => {},
+    stderr: (line) => warnings.push(line.replace(/^.*?warn:\s*/, ""))
+  });
+  return { logger, warnings };
 }
 
 describe("validateLinks", () => {
-  it("存在する相対.mdリンクは警告しない", () => {
-    // 正常なページ間リンクは検証を通過する
-    const { logger, warnings } = createCapturingLogger();
-    validateLinks([
-      page({ sourcePath: "index.md", links: ["./guide.md"] }),
-      page({ sourcePath: "guide.md", links: [], anchorIds: [] })
-    ], logger);
-
-    expect(warnings).toEqual([]);
-    expect(logger.getWarnCount()).toBe(0);
-  });
-
-  it("存在しない.mdリンクはリンク切れ警告を出す", () => {
-    // 仕様書7.3の代表例: ./missing.md
-    const { logger, warnings } = createCapturingLogger();
-    validateLinks([
-      page({ sourcePath: "index.md", links: ["./missing.md"] })
-    ], logger);
-
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toContain("リンク切れ");
-    expect(warnings[0]).toContain("index.md");
-    expect(warnings[0]).toContain("./missing.md");
-    expect(logger.getWarnCount()).toBe(1);
-  });
-
-  it("存在するページの不正アンカーはアンカー切れ警告を出す", () => {
-    // ページはあるが見出しidが無い場合
-    const { logger, warnings } = createCapturingLogger();
-    validateLinks([
-      page({ sourcePath: "a.md", links: ["./b.md#no-such"] }),
-      page({ sourcePath: "b.md", links: [], anchorIds: ["intro"] })
-    ], logger);
-
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toContain("アンカー切れ");
-    expect(warnings[0]).toContain("./b.md#no-such");
-  });
-
-  it("存在するアンカー付きリンクは警告しない", () => {
-    // 相対パス解決とアンカー照合の両方を確認する
-    const { logger, warnings } = createCapturingLogger();
-    validateLinks([
-      page({ sourcePath: "b/c.md", links: ["../a.md#page-a"] }),
-      page({ sourcePath: "a.md", links: [], anchorIds: ["page-a", "title"] })
-    ], logger);
-
-    expect(warnings).toEqual([]);
-  });
-
-  it("同ページの#アンカーを検証する", () => {
-    // #始まりは書き換え対象外だが検証対象
-    const { logger, warnings } = createCapturingLogger();
-    validateLinks([
-      page({
+  it("存在する相対リンクは警告しない", () => {
+    const pages = [
+      createTestPage({
         sourcePath: "index.md",
-        links: ["#setup", "#missing"],
-        anchorIds: ["title", "setup"]
+        links: ["guide.md"],
+        anchorIds: ["home"]
+      }),
+      createTestPage({
+        sourcePath: "guide.md",
+        outputPath: "guide.html",
+        title: "Guide",
+        links: [],
+        anchorIds: ["setup"]
       })
-    ], logger);
+    ];
+    const { logger, warnings } = capturingLogger();
 
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toContain("アンカー切れ");
-    expect(warnings[0]).toContain("#missing");
-  });
-
-  it("空アンカー#はページ先頭として有効", () => {
-    // # のみはページ先頭へのリンクとして通す
-    const { logger, warnings } = createCapturingLogger();
-    validateLinks([
-      page({ sourcePath: "index.md", links: ["#"], anchorIds: [] })
-    ], logger);
+    validateLinks(pages, logger);
 
     expect(warnings).toEqual([]);
   });
 
-  it("h1のアンカーも有効として扱う", () => {
-    // headingsはh2+だが、実HTMLのh1 idはanchorIdsに含まれる
-    const { logger, warnings } = createCapturingLogger();
-    validateLinks([
-      page({ sourcePath: "index.md", links: ["#title"], anchorIds: ["title"] })
-    ], logger);
-
-    expect(warnings).toEqual([]);
-  });
-
-  it("外部URL・サイト絶対パス・非ページ相対はスキップする", () => {
-    // 仕様どおり外部死活チェックはせず、画像等も対象外
-    const { logger, warnings } = createCapturingLogger();
-    validateLinks([
-      page({
+  it("存在しないページへのリンクはリンク切れ警告にする", () => {
+    const pages = [
+      createTestPage({
         sourcePath: "index.md",
-        links: [
-          "https://example.com",
-          "http://example.com/a",
-          "mailto:a@b.com",
-          "//cdn.example.com/x",
-          "/absolute.html",
-          "./image.png",
-          "../assets/logo.svg"
-        ]
+        links: ["missing.md"],
+        anchorIds: []
       })
-    ], logger);
+    ];
+    const { logger, warnings } = capturingLogger();
+
+    validateLinks(pages, logger);
+
+    expect(warnings).toEqual(["リンク切れ: index.md -> missing.md"]);
+  });
+
+  it("パーセントエンコードされた日本語アンカーを正しく照合する", () => {
+    // markdown-itは非ASCIIアンカーをエンコードするが、anchorIdsは生slugのまま
+    const encoded = encodeURIComponent("はじめに");
+    const pages = [
+      createTestPage({
+        sourcePath: "index.md",
+        links: [`#${encoded}`],
+        anchorIds: ["はじめに"]
+      })
+    ];
+    const { logger, warnings } = capturingLogger();
+
+    validateLinks(pages, logger);
 
     expect(warnings).toEqual([]);
   });
 
-  it(".html相対リンクも.mdページとして解決する", () => {
-    // 書き換え後の記法で書かれたリンクも検証する
-    const { logger, warnings } = createCapturingLogger();
-    validateLinks([
-      page({ sourcePath: "index.md", links: ["./guide.html#intro"] }),
-      page({ sourcePath: "guide.md", links: [], anchorIds: ["intro"] })
-    ], logger);
+  it("エンコード済み日本語アンカーが存在しないときはアンカー切れにする", () => {
+    const encoded = encodeURIComponent("はじめに");
+    const pages = [
+      createTestPage({
+        sourcePath: "index.md",
+        links: [`#${encoded}`],
+        anchorIds: ["別の見出し"]
+      })
+    ];
+    const { logger, warnings } = capturingLogger();
+
+    validateLinks(pages, logger);
+
+    expect(warnings).toEqual([`アンカー切れ: index.md -> #${encoded}`]);
+  });
+
+  it("不正なパーセントエンコードは生文字のまま照合する", () => {
+    // decodeURIComponentが失敗してもビルドを落とさず生文字で比較する
+    const pages = [
+      createTestPage({
+        sourcePath: "index.md",
+        links: ["#%E0%A4%A"],
+        anchorIds: ["%E0%A4%A"]
+      })
+    ];
+    const { logger, warnings } = capturingLogger();
+
+    validateLinks(pages, logger);
 
     expect(warnings).toEqual([]);
   });

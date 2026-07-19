@@ -72,6 +72,12 @@ export async function createConverter(config: ResolvedConfig, logger: Logger)
       const anchorIds: string[] = [];
       const links: string[] = [];
       const html = md.render(markdown, { headings, anchorIds, links, sourcePath });
+      // 生HTMLのidもリンク検証対象に含める（見出し由来と重複し得るため一意化する）
+      for (const id of collectHtmlIds(html)) {
+        if (!anchorIds.includes(id)) {
+          anchorIds.push(id);
+        }
+      }
       // 検索インデックス用にタグ除去済みテキストも返す
       const plainText = htmlToPlainText(html);
       return {
@@ -267,8 +273,10 @@ function isExternalOrAbsolute(href: string): boolean
  */
 function htmlToPlainText(html: string): string
 {
+  // コピーボタン文言が検索ノイズになるため、先に除去する
+  let text = html.replace(/<button\b[^>]*\bdata-code-copy\b[^>]*>[\s\S]*?<\/button>/gi, " ");
   // タグを除去する
-  let text = html.replace(/<[^>]+>/g, " ");
+  text = text.replace(/<[^>]+>/g, " ");
   // 主要エンティティを復元する
   text = text
     .replace(/&amp;/g, "&")
@@ -278,4 +286,23 @@ function htmlToPlainText(html: string): string
     .replace(/&#39;/g, "'");
   // 連続空白を1つに正規化し前後を整える
   return text.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * 変換後HTMLからid属性値を収集する
+ */
+function collectHtmlIds(html: string): string[]
+{
+  const ids: string[] = [];
+  // 見出し・生HTMLどちらも id="..." / id='...' を拾う
+  const re = /\sid=["']([^"']+)["']/gi;
+  let match = re.exec(html);
+  while (match !== null) {
+    const id = match[1];
+    if (id !== undefined && id.length > 0) {
+      ids.push(id);
+    }
+    match = re.exec(html);
+  }
+  return ids;
 }

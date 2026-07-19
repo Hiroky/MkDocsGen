@@ -163,6 +163,16 @@ describe("createConverter", () => {
       // 連続空白は1つに正規化されている
       expect(plainText).not.toMatch(/\s{2,}/);
     });
+
+    it("コードコピーボタンのCopy文言を検索テキストから除外する", async () => {
+      // ボタンラベルがインデックスに入ると誤ヒットの原因になる
+      const converter = await createConverter(createMarkdownConfig(), createSilentLogger());
+      const { plainText, html } = converter.convert("```ts\nconst x = 1;\n```\n", "index.md");
+
+      expect(html).toContain(">Copy</button>");
+      expect(plainText).toContain("const x = 1");
+      expect(plainText).not.toMatch(/\bCopy\b/);
+    });
   });
 
   describe("C-5 リンク検証用の収集", () => {
@@ -186,6 +196,18 @@ describe("createConverter", () => {
 
       expect(anchorIds).toEqual(["title", "setup"]);
       expect(headings).toEqual([{ level: 2, text: "Setup", anchorId: "setup" }]);
+    });
+
+    it("allow_html時は生HTMLのidもanchorIdsに含める", async () => {
+      // 有効な手動アンカーを偽陽性の切れ扱いにしない
+      const converter = await createConverter(createMarkdownConfig({ allowHtml: true }), createSilentLogger());
+      const { anchorIds } = converter.convert(
+        '# Title\n\n<div id="custom-anchor">x</div>\n\n[go](#custom-anchor)\n',
+        "index.md"
+      );
+
+      expect(anchorIds).toContain("title");
+      expect(anchorIds).toContain("custom-anchor");
     });
   });
 });

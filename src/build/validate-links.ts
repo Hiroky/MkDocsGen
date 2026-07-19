@@ -38,11 +38,27 @@ export function validateLinks(pages: Page[], logger: Logger): void
         continue;
       }
 
-      // 見出しid（h1含む）に含まれなければアンカー切れ
-      if (!target.anchorIds.includes(resolved.anchor)) {
+      // markdown-itは非ASCIIアンカーをパーセントエンコードするため、比較前にデコードする
+      const anchor = decodeAnchor(resolved.anchor);
+      // 見出しid（h1含む）や生HTMLのidに含まれなければアンカー切れ
+      if (!target.anchorIds.includes(anchor)) {
         logger.warn(`アンカー切れ: ${page.sourcePath} -> ${href}`);
       }
     }
+  }
+}
+
+/**
+ * リンクhrefのアンカー部分を照合用にデコードする
+ */
+function decodeAnchor(anchor: string): string
+{
+  try {
+    // #%E3%81%AF... → はじめに のように戻す
+    return decodeURIComponent(anchor);
+  } catch {
+    // 不正なパーセント列はそのまま比較する
+    return anchor;
   }
 }
 

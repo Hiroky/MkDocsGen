@@ -302,17 +302,27 @@
    */
   function loadScript(src) {
     return new Promise((resolve, reject) => {
-      // 既に読み込み済みなら再挿入しない
       const existing = document.querySelector(`script[src="${src}"]`);
       if (existing) {
-        resolve();
-        return;
+        // 成功済みだけ再利用する。失敗タグが残っていると未定義のまま即成功してしまう
+        if (existing.dataset.loaded === "1") {
+          resolve();
+          return;
+        }
+        existing.remove();
       }
       const script = document.createElement("script");
       script.src = src;
       script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+      script.onload = () => {
+        script.dataset.loaded = "1";
+        resolve();
+      };
+      script.onerror = () => {
+        // 再試行できるように失敗タグは残さない
+        script.remove();
+        reject(new Error(`Failed to load script: ${src}`));
+      };
       document.head.appendChild(script);
     });
   }
