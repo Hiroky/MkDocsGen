@@ -213,6 +213,13 @@
       overlay.addEventListener("click", () => setOpen(false));
     }
 
+    // Escapeでドロワーを閉じる（キーボード操作の要件）
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && toggle.getAttribute("aria-expanded") === "true") {
+        setOpen(false);
+      }
+    });
+
     // 幅が広がったらドロワー状態をリセットする
     window.matchMedia("(min-width: 769px)").addEventListener("change", (event) => {
       if (event.matches) {
@@ -239,11 +246,18 @@
     }
 
     /**
-     * 指定アンカーの目次リンクだけをactiveにする
+     * 指定アンカーの目次リンクだけをactiveにし、aria-currentも同期する
      */
     function setActive(anchorId) {
       links.forEach((link) => {
-        link.classList.toggle("is-active", link.getAttribute("data-anchor") === anchorId);
+        const active = link.getAttribute("data-anchor") === anchorId;
+        link.classList.toggle("is-active", active);
+        // 仕様4.6: 目次にもaria-currentを付与する
+        if (active) {
+          link.setAttribute("aria-current", "true");
+        } else {
+          link.removeAttribute("aria-current");
+        }
       });
     }
 

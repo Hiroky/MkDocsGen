@@ -1,31 +1,38 @@
 # MkDocsGen
 
 Markdownファイル群から静的なドキュメントサイト（HTML）を生成するドキュメントビルダー。
-詳細な仕様は [concept-plan.md](./concept-plan.md) を参照。
+
+検索・テーマ切替・Admonition / Shiki / Mermaid・PyDoc・プラグインに対応し、出力は `file://` でも閲覧できます。
 
 ## 必要環境
 
 - Node.js 20以上
 
-## セットアップ
+## クイックスタート
 
 ```bash
 npm install
+npx mkdocsgen init      # 雛形を生成
+npx mkdocsgen build     # site/ へ出力
+npx mkdocsgen serve     # ライブリロード開発サーバー
 ```
 
-## 開発用コマンド
+詳細な利用方法はリポジトリ内のドキュメントを参照してください。
 
-| コマンド | 説明 |
+```bash
+npm run docs:build      # このリポジトリの docs/ をビルド
+npm run docs:serve      # ドキュメントをプレビュー
+```
+
+| ドキュメント | 内容 |
 | --- | --- |
-| `npm run dev -- <args>` | CLIをビルドせずに直接実行する（例: `npm run dev -- build --strict`） |
-| `npm run build` | TypeScriptを `dist/` にコンパイルする |
-| `npm run typecheck` | 型チェックのみ実行する（出力なし） |
-| `npm test` | テストを1回実行する |
-| `npm run test:watch` | テストをウォッチモードで実行する |
-| `npm run test:coverage` | カバレッジ付きでテストを実行する |
-| `npm run example:build` | `examples/phase5-demo` をビルドし `site/` へ出力する（`index.html` をブラウザで直接開いて確認） |
+| [docs/](./docs/index.md) | 利用ガイド（はじめに・設定・Markdown・PyDoc・プラグイン等） |
+| [docs/reference/cli.md](./docs/reference/cli.md) | CLIオプション |
+| [docs/reference/config.md](./docs/reference/config.md) | 設定スキーマ |
+| [docs/reference/template-context.md](./docs/reference/template-context.md) | テンプレートコンテキスト変数 |
+| [concept-plan.md](./concept-plan.md) | 設計仕様書（開発者向け） |
 
-## CLIコマンド
+## CLI概要
 
 ```bash
 mkdocsgen init    # mkdocsgen.yml とドキュメント雛形を生成
@@ -33,27 +40,20 @@ mkdocsgen build   # 静的サイトをビルド
 mkdocsgen serve   # 開発サーバーを起動（ライブリロード）
 ```
 
-### build
+開発中はコンパイルせずに実行できます。
 
 ```bash
-# カレントの mkdocsgen.yml を読んで site/ へ出力する
-npm run dev -- build
-
-# オプション例
-npm run dev -- build --config ./mkdocsgen.yml --clean --strict --verbose
+npm run dev -- build --clean --strict --verbose
 ```
 
-| オプション | 説明 |
+| build オプション | 説明 |
 | --- | --- |
-| `--config <path>` | 設定ファイルのパス（デフォルト: `./mkdocsgen.yml`） |
-| `--clean` | 出力ディレクトリを事前に空にする（設定ファイル配下のみ） |
-| `--strict` | 警告が1件以上あれば終了コード1で失敗させる |
+| `--config <path>` | 設定ファイル（デフォルト: `./mkdocsgen.yml`） |
+| `--clean` | 出力ディレクトリを事前に空にする |
+| `--strict` | 警告が1件以上あれば終了コード1 |
 | `--verbose` | デバッグログを出力する |
 
-ビルド成功時はページ数・警告数・所要時間のサマリを表示する。
-テンプレート変数の公開仕様は [dev_docs/template-context.md](./dev_docs/template-context.md) を参照。
-
-### 最小のプロジェクト構成
+## 最小のプロジェクト構成
 
 ```
 my-docs/
@@ -69,25 +69,32 @@ site:
   title: My Docs
 ```
 
+## 開発用コマンド
+
+| コマンド | 説明 |
+| --- | --- |
+| `npm run dev -- <args>` | CLIをビルドせずに直接実行する |
+| `npm run build` | TypeScriptを `dist/` にコンパイルする |
+| `npm run typecheck` | 型チェックのみ実行する |
+| `npm test` | テストを1回実行する |
+| `npm run test:watch` | テストをウォッチモードで実行する |
+| `npm run test:coverage` | カバレッジ付きでテストを実行する |
+| `npm run docs:build` | リポジトリの利用ドキュメントをビルドする |
+| `npm run docs:serve` | 利用ドキュメントを serve する |
+| `npm run example:build` | `examples/phase5-demo` をビルドする |
+| `npm run bench` | 100ページ規模のビルド性能を計測する |
+| `npm run test:perf` | 性能アサーション付きテスト（`TEST_PERF=1`） |
+
 ## ディレクトリ構成
 
 ```
-src/
-├── cli/          # CLIエントリポイントとコマンド定義
-├── config/       # mkdocsgen.yml の読込・zodバリデーション
-├── scanner/      # docs/ 走査とナビゲーションツリー構築
-├── markdown/     # Markdown変換（GFM / Admonition / Shiki / Mermaid / 内部リンク）
-├── build/        # buildパイプライン統合
-├── pydoc/        # Pythonソース静的解析（web-tree-sitter）とdocstring解析
-├── render/       # Nunjucksテンプレートによる最終HTML生成
-├── search/       # 検索インデックス生成（MiniSearch / bigram）
-├── plugin/       # プラグインのロードとライフサイクルフック実行
-└── server/       # 開発サーバー（chokidar監視 + WebSocketライブリロード）
-templates/        # 組み込みテーマのNunjucksテンプレート
-tests/            # テストコード（src/ とディレクトリ構造を対応させる）
-examples/         # 目視確認用サンプル（詳細は examples/README.md）
-examples/plugins/ # プラグイン参考実装（Confluenceエクスポート等）
+src/              # 本体ソース（cli / config / scanner / markdown / build / …）
+templates/        # 組み込みテーマ
+docs/             # 利用ドキュメント（ドッグフード）
+tests/            # テスト（src/ と対応）
+examples/         # 目視確認用サンプル・プラグイン参考実装
 dev_docs/         # 開発用内部ドキュメント（ロードマップ等）
+scripts/          # ベンチ等の補助スクリプト
 tasks/            # 開発メモ（lessons.md 等）
 ```
 

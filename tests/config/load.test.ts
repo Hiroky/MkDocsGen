@@ -85,4 +85,18 @@ describe("loadConfig", () => {
       expect((error as ConfigError).message).toContain(path.resolve(missing));
     }
   });
+
+  it("型不一致は該当キーと期待型を含むConfigErrorになる", () => {
+    // 仕様書2.8: スキーマ違反（型不一致）はキーと期待型を表示する
+    expect(() => loadConfig(fixture("type-mismatch.yml"))).toThrow(ConfigError);
+    try {
+      loadConfig(fixture("type-mismatch.yml"));
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConfigError);
+      const message = (error as ConfigError).message;
+      expect(message).toContain("site.title");
+      // zodのメッセージに expected / received が含まれること
+      expect(message.toLowerCase()).toMatch(/expected|string/);
+    }
+  });
 });
