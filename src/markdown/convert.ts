@@ -12,6 +12,10 @@ import { taskListPlugin } from "./task-list.js";
 export interface ConvertResult {
   html: string;
   headings: Heading[];
+  /** h1を含む全見出しのid（リンク検証用） */
+  anchorIds: string[];
+  /** Markdown内の生href一覧（リンク検証用・書き換え前） */
+  links: string[];
   plainText: string;
 }
 
@@ -35,7 +39,16 @@ export async function createConverter(config: ResolvedConfig, logger: Logger)
 
   // 見出しアンカー付与はcoreの後処理として差し込む
   md.core.ruler.push("heading_anchors", (state) => {
-    applyHeadingAnchors(state.tokens, state.env.headings as Heading[]);
+    applyHeadingAnchors(
+      state.tokens,
+      state.env.headings as Heading[],
+      state.env.anchorIds as string[]
+    );
+  });
+
+  // リンク検証用に、書き換え前の生hrefを収集する（#始まりも含む）
+  md.core.ruler.push("collect_internal_links", (state) => {
+    collectInternalLinks(state.tokens, state.env.links as string[]);
   });
 
   // 内部リンク書き換えも同じトークン列を後処理する
@@ -54,14 +67,18 @@ export async function createConverter(config: ResolvedConfig, logger: Logger)
      */
     convert(markdown: string, sourcePath: string): ConvertResult
     {
-      // env経由でheadingsとsourcePathを渡し、ruler / Admonition側で参照する
+      // env経由でheadings等を渡し、ruler / Admonition側で参照・蓄積する
       const headings: Heading[] = [];
-      const html = md.render(markdown, { headings, sourcePath });
+      const anchorIds: string[] = [];
+      const links: string[] = [];
+      const html = md.render(markdown, { headings, anchorIds, links, sourcePath });
       // 検索インデックス用にタグ除去済みテキストも返す
       const plainText = htmlToPlainText(html);
       return {
         html,
         headings,
+        anchorIds,
+        links,
         plainText
       };
     }
@@ -106,9 +123,9 @@ function wrapCodeBlock(md: MarkdownIt, innerHtml: string, rawCode: string): stri
 }
 
 /**
- * 見出しトークンにidを付与し、h2以上をheadingsへ抽出する
+ * 見出しトークンにidを付与し、h2以上をheadingsへ、全レベルをanchorIdsへ抽出する
  */
-function applyHeadingAnchors(tokens: Token[], headings: Heading[]): void
+function applyHeadingAnchors(tokens: Token[], headings: Heading[], anchorIds: string[]): void
 {
   const used = new Set<string>();
 
@@ -137,12 +154,36 @@ function applyHeadingAnchors(tokens: Token[], headings: Heading[]): void
 
     // HTMLのid属性として書き出す
     token.attrSet("id", slug);
+    // リンク検証ではh1も含めて照合するため全idを残す
+    anchorIds.push(slug);
 
     // h1はページタイトル扱いのため目次データには含めない
     const level = Number(token.tag.slice(1));
     if (level >= 2) {
       headings.push({ level, text, anchorId: slug });
     }
+  }
+}
+
+/**
+ * link_openトークンから生hrefを収集する（書き換え前に呼ぶ）
+ */
+function collectInternalLinks(tokens: Token[], links: string[]): void
+{
+  for (const token of tokens) {
+    // ブロック側とインライン子の両方を走査する
+    if (token.type === "inline" && token.children) {
+      collectInternalLinks(token.children, links);
+      continue;
+    }
+    if (token.type !== "link_open") {
+      continue;
+    }
+    const href = token.attrGet("href");
+    if (href === null) {
+      continue;
+    }
+    links.push(href);
   }
 }
 

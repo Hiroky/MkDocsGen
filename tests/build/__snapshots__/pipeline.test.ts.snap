@@ -1,0 +1,588 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`runBuild > 主要ページのHTMLスナップショットが一致する > a.html 1`] = `
+"<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page A - Basic Site</title>
+  
+  <link rel="stylesheet" href="assets/main.css">
+  
+  
+  <script>
+    (function () {
+      var KEY = "mkdocsgen-theme";
+      var stored = null;
+      try { stored = localStorage.getItem(KEY); } catch (e) {}
+      var mode = stored || "auto";
+      function resolve(m) {
+        if (m === "light" || m === "dark") return m;
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.dataset.theme = resolve(mode);
+      document.documentElement.dataset.themeMode = mode;
+    })();
+  </script>
+  
+</head>
+<body>
+  <a class="skip-link" href="#main-content">本文へスキップ</a>
+  <header class="site-header">
+  <button type="button" class="menu-toggle" data-menu-toggle aria-controls="sidebar" aria-expanded="false" aria-label="ナビゲーションを開く">
+    <span class="menu-toggle-icon" aria-hidden="true"></span>
+  </button>
+  <a class="site-title" href="index.html">Basic Site</a>
+  <div class="header-actions">
+    
+<div class="search" data-search>
+  <label class="visually-hidden" for="site-search">検索</label>
+  <input id="site-search" class="search-input" type="search" placeholder="検索（準備中）" disabled>
+</div>
+
+    <button type="button" class="theme-toggle" data-theme-toggle aria-label="テーマを切り替える">
+      <span class="theme-toggle-label" data-theme-label>auto</span>
+    </button>
+  </div>
+</header>
+
+  <div class="layout">
+    <div class="sidebar-overlay" data-sidebar-overlay hidden></div>
+    <aside class="sidebar" id="sidebar" data-sidebar>
+      
+
+
+
+
+
+<nav class="sidebar-nav" aria-label="サイトナビゲーション">
+  
+  <ul class="nav-list">
+  
+    
+    
+    
+    
+    
+    <li class="nav-item">
+      
+        <a class="nav-link" href="index.html">Home</a>
+      
+    </li>
+  
+    
+    
+    
+    
+    
+    <li class="nav-item nav-item--current">
+      
+        <a class="nav-link" href="a.html" aria-current="page">Page A</a>
+      
+    </li>
+  
+    
+    
+    
+    
+    
+    <li class="nav-item nav-item--section">
+      
+        <div class="nav-section-row">
+          <button type="button" class="nav-toggle" data-nav-toggle aria-expanded="false" aria-label="Section Bを展開">
+            <span class="nav-toggle-icon" aria-hidden="true"></span>
+          </button>
+          
+            <a class="nav-link" href="b/index.html">Section B</a>
+          
+        </div>
+        <div class="nav-children" data-nav-children hidden>
+          
+  <ul class="nav-list">
+  
+    
+    
+    
+    
+    
+    <li class="nav-item">
+      
+        <a class="nav-link" href="b/c.html">Page C</a>
+      
+    </li>
+  
+  </ul>
+
+        </div>
+      
+    </li>
+  
+  </ul>
+
+</nav>
+
+    </aside>
+    <div class="main-column">
+      <main id="main-content" class="content">
+        
+  
+
+<nav class="breadcrumbs" aria-label="パンくず">
+  <ol class="breadcrumbs-list">
+  
+    <li class="breadcrumbs-item">
+      
+        <span aria-current="page">Page A</span>
+      
+    </li>
+  
+  </ol>
+</nav>
+
+
+  <article class="page">
+    <h1 class="page-title">Page A</h1>
+    <div class="page-body">
+      <h1 id="page-a">Page A</h1>
+<p>Standalone page with an explicit order.</p>
+
+    </div>
+  </article>
+  
+
+<nav class="prev-next" aria-label="前後のページ">
+  
+    <a class="prev-next-link prev-next-link--prev" href="index.html">
+      <span class="prev-next-label">前のページ</span>
+      <span class="prev-next-title">Home</span>
+    </a>
+  
+  
+    <a class="prev-next-link prev-next-link--next" href="b/index.html">
+      <span class="prev-next-label">次のページ</span>
+      <span class="prev-next-title">Section B</span>
+    </a>
+  
+</nav>
+
+
+
+      </main>
+      <footer id="overridden-footer">Override Footer for Basic Site</footer>
+
+    </div>
+    <aside class="toc-sidebar" data-toc-sidebar>
+      
+
+
+    </aside>
+  </div>
+  <script src="assets/mermaid.min.js" defer></script>
+  <script src="assets/main.js" defer></script>
+  
+</body>
+</html>
+"
+`;
+
+exports[`runBuild > 主要ページのHTMLスナップショットが一致する > b/c.html 1`] = `
+"<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page C - Basic Site</title>
+  
+  <link rel="stylesheet" href="../assets/main.css">
+  
+  
+  <script>
+    (function () {
+      var KEY = "mkdocsgen-theme";
+      var stored = null;
+      try { stored = localStorage.getItem(KEY); } catch (e) {}
+      var mode = stored || "auto";
+      function resolve(m) {
+        if (m === "light" || m === "dark") return m;
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.dataset.theme = resolve(mode);
+      document.documentElement.dataset.themeMode = mode;
+    })();
+  </script>
+  
+</head>
+<body>
+  <a class="skip-link" href="#main-content">本文へスキップ</a>
+  <header class="site-header">
+  <button type="button" class="menu-toggle" data-menu-toggle aria-controls="sidebar" aria-expanded="false" aria-label="ナビゲーションを開く">
+    <span class="menu-toggle-icon" aria-hidden="true"></span>
+  </button>
+  <a class="site-title" href="../index.html">Basic Site</a>
+  <div class="header-actions">
+    
+<div class="search" data-search>
+  <label class="visually-hidden" for="site-search">検索</label>
+  <input id="site-search" class="search-input" type="search" placeholder="検索（準備中）" disabled>
+</div>
+
+    <button type="button" class="theme-toggle" data-theme-toggle aria-label="テーマを切り替える">
+      <span class="theme-toggle-label" data-theme-label>auto</span>
+    </button>
+  </div>
+</header>
+
+  <div class="layout">
+    <div class="sidebar-overlay" data-sidebar-overlay hidden></div>
+    <aside class="sidebar" id="sidebar" data-sidebar>
+      
+
+
+
+
+
+<nav class="sidebar-nav" aria-label="サイトナビゲーション">
+  
+  <ul class="nav-list">
+  
+    
+    
+    
+    
+    
+    <li class="nav-item">
+      
+        <a class="nav-link" href="../index.html">Home</a>
+      
+    </li>
+  
+    
+    
+    
+    
+    
+    <li class="nav-item">
+      
+        <a class="nav-link" href="../a.html">Page A</a>
+      
+    </li>
+  
+    
+    
+    
+    
+    
+    <li class="nav-item nav-item--section">
+      
+        <div class="nav-section-row">
+          <button type="button" class="nav-toggle" data-nav-toggle aria-expanded="true" aria-label="Section Bを展開">
+            <span class="nav-toggle-icon" aria-hidden="true"></span>
+          </button>
+          
+            <a class="nav-link" href="../b/index.html">Section B</a>
+          
+        </div>
+        <div class="nav-children" data-nav-children>
+          
+  <ul class="nav-list">
+  
+    
+    
+    
+    
+    
+    <li class="nav-item nav-item--current">
+      
+        <a class="nav-link" href="../b/c.html" aria-current="page">Page C</a>
+      
+    </li>
+  
+  </ul>
+
+        </div>
+      
+    </li>
+  
+  </ul>
+
+</nav>
+
+    </aside>
+    <div class="main-column">
+      <main id="main-content" class="content">
+        
+  
+
+<nav class="breadcrumbs" aria-label="パンくず">
+  <ol class="breadcrumbs-list">
+  
+    <li class="breadcrumbs-item">
+      
+        
+        
+          <a href="../b/index.html">Section B</a>
+        
+      
+    </li>
+  
+    <li class="breadcrumbs-item">
+      
+        <span aria-current="page">Page C</span>
+      
+    </li>
+  
+  </ol>
+</nav>
+
+
+  <article class="page">
+    <h1 class="page-title">Page C</h1>
+    <div class="page-body">
+      <h1 id="page-c">Page C</h1>
+<p>This page includes GFM samples and an internal link.</p>
+<table>
+<thead>
+<tr>
+<th>Col</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>a</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li class="task-list-item"><input type="checkbox" disabled> todo</li>
+<li class="task-list-item"><input type="checkbox" disabled checked> done</li>
+</ul>
+<p><s>strike</s></p>
+<p>See also <a href="../index.html">home</a> and <a href="../a.html#page-a">setup anchor</a>.</p>
+<h2 id="first-heading">First Heading</h2>
+<p>Content under first heading.</p>
+<h2 id="second-heading">Second Heading</h2>
+<p>Content under second heading.</p>
+
+    </div>
+  </article>
+  
+
+<nav class="prev-next" aria-label="前後のページ">
+  
+    <a class="prev-next-link prev-next-link--prev" href="../b/index.html">
+      <span class="prev-next-label">前のページ</span>
+      <span class="prev-next-title">Section B</span>
+    </a>
+  
+  
+</nav>
+
+
+
+      </main>
+      <footer id="overridden-footer">Override Footer for Basic Site</footer>
+
+    </div>
+    <aside class="toc-sidebar" data-toc-sidebar>
+      
+
+<nav class="toc" aria-label="ページ内目次">
+  <p class="toc-title">目次</p>
+  <ul class="toc-list">
+  
+    <li class="toc-item toc-item--level-2">
+      <a class="toc-link" href="#first-heading" data-toc-link data-anchor="first-heading">First Heading</a>
+    </li>
+  
+    <li class="toc-item toc-item--level-2">
+      <a class="toc-link" href="#second-heading" data-toc-link data-anchor="second-heading">Second Heading</a>
+    </li>
+  
+  </ul>
+</nav>
+
+
+    </aside>
+  </div>
+  <script src="../assets/mermaid.min.js" defer></script>
+  <script src="../assets/main.js" defer></script>
+  
+</body>
+</html>
+"
+`;
+
+exports[`runBuild > 主要ページのHTMLスナップショットが一致する > index.html 1`] = `
+"<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Home - Basic Site</title>
+  
+  <link rel="stylesheet" href="assets/main.css">
+  
+  
+  <script>
+    (function () {
+      var KEY = "mkdocsgen-theme";
+      var stored = null;
+      try { stored = localStorage.getItem(KEY); } catch (e) {}
+      var mode = stored || "auto";
+      function resolve(m) {
+        if (m === "light" || m === "dark") return m;
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.dataset.theme = resolve(mode);
+      document.documentElement.dataset.themeMode = mode;
+    })();
+  </script>
+  
+</head>
+<body>
+  <a class="skip-link" href="#main-content">本文へスキップ</a>
+  <header class="site-header">
+  <button type="button" class="menu-toggle" data-menu-toggle aria-controls="sidebar" aria-expanded="false" aria-label="ナビゲーションを開く">
+    <span class="menu-toggle-icon" aria-hidden="true"></span>
+  </button>
+  <a class="site-title" href="index.html">Basic Site</a>
+  <div class="header-actions">
+    
+<div class="search" data-search>
+  <label class="visually-hidden" for="site-search">検索</label>
+  <input id="site-search" class="search-input" type="search" placeholder="検索（準備中）" disabled>
+</div>
+
+    <button type="button" class="theme-toggle" data-theme-toggle aria-label="テーマを切り替える">
+      <span class="theme-toggle-label" data-theme-label>auto</span>
+    </button>
+  </div>
+</header>
+
+  <div class="layout">
+    <div class="sidebar-overlay" data-sidebar-overlay hidden></div>
+    <aside class="sidebar" id="sidebar" data-sidebar>
+      
+
+
+
+
+
+<nav class="sidebar-nav" aria-label="サイトナビゲーション">
+  
+  <ul class="nav-list">
+  
+    
+    
+    
+    
+    
+    <li class="nav-item nav-item--current">
+      
+        <a class="nav-link" href="index.html" aria-current="page">Home</a>
+      
+    </li>
+  
+    
+    
+    
+    
+    
+    <li class="nav-item">
+      
+        <a class="nav-link" href="a.html">Page A</a>
+      
+    </li>
+  
+    
+    
+    
+    
+    
+    <li class="nav-item nav-item--section">
+      
+        <div class="nav-section-row">
+          <button type="button" class="nav-toggle" data-nav-toggle aria-expanded="false" aria-label="Section Bを展開">
+            <span class="nav-toggle-icon" aria-hidden="true"></span>
+          </button>
+          
+            <a class="nav-link" href="b/index.html">Section B</a>
+          
+        </div>
+        <div class="nav-children" data-nav-children hidden>
+          
+  <ul class="nav-list">
+  
+    
+    
+    
+    
+    
+    <li class="nav-item">
+      
+        <a class="nav-link" href="b/c.html">Page C</a>
+      
+    </li>
+  
+  </ul>
+
+        </div>
+      
+    </li>
+  
+  </ul>
+
+</nav>
+
+    </aside>
+    <div class="main-column">
+      <main id="main-content" class="content">
+        
+  
+
+
+  <article class="page">
+    <h1 class="page-title">Home</h1>
+    <div class="page-body">
+      <h1 id="home">Home</h1>
+<p>Welcome to the basic site fixture.</p>
+<p>This is the top page used by integration tests.</p>
+
+    </div>
+  </article>
+  
+
+<nav class="prev-next" aria-label="前後のページ">
+  
+    <span class="prev-next-link prev-next-link--prev prev-next-link--empty"></span>
+  
+  
+    <a class="prev-next-link prev-next-link--next" href="a.html">
+      <span class="prev-next-label">次のページ</span>
+      <span class="prev-next-title">Page A</span>
+    </a>
+  
+</nav>
+
+
+
+      </main>
+      <footer id="overridden-footer">Override Footer for Basic Site</footer>
+
+    </div>
+    <aside class="toc-sidebar" data-toc-sidebar>
+      
+
+
+    </aside>
+  </div>
+  <script src="assets/mermaid.min.js" defer></script>
+  <script src="assets/main.js" defer></script>
+  
+</body>
+</html>
+"
+`;

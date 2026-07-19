@@ -6,9 +6,9 @@ dist
 .vs
 .vscode
 
-# 一時/サンプル
-*.user
-build*/
+# 一時/サンプル（ソースの src/build・tests/build は対象外）
+/build/
+/build-*/
 tmp/
 
 # バイナリ

@@ -27,7 +27,7 @@ npm install
 ## CLIコマンド
 
 ```bash
-mkdocsgen init    # mkdocsgen.yml とドキュメント雛形を生成（未実装）
+mkdocsgen init    # mkdocsgen.yml とドキュメント雛形を生成
 mkdocsgen build   # 静的サイトをビルド
 mkdocsgen serve   # 開発サーバーを起動（未実装）
 ```

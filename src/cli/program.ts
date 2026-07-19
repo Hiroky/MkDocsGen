@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { BuildError, runBuild } from "../build/pipeline.js";
 import { ConfigError } from "../config/load.js";
 import { Logger } from "../logger.js";
+import { runInit } from "./init.js";
 
 /**
  * MkDocsGen CLIのコマンド定義（init / build / serve）を構築して返す
@@ -20,8 +21,9 @@ export function createProgram(): Command
     .command("init")
     .description("mkdocsgen.yml とドキュメントの雛形を生成する")
     .action(() => {
-      // 本体はまだ実装していないため、現段階では案内メッセージのみ表示する
-      console.log("init コマンドは未実装です");
+      const logger = new Logger(false);
+      // カレントディレクトリへ雛形を書き出す（既存はスキップ）
+      runInit(process.cwd(), logger);
     });
 
   // buildコマンド: 設定を読み込み、静的サイトを出力ディレクトリへ生成する

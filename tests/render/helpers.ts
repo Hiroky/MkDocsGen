@@ -69,6 +69,8 @@ export function createTestPage(overrides: Partial<Page> = {}): Page
     description: "",
     frontmatter: {},
     headings: [],
+    anchorIds: [],
+    links: [],
     contentHtml: "<p>Hello</p>",
     plainText: "Hello",
     prev: null,

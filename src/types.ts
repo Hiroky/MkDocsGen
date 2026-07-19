@@ -35,6 +35,10 @@ export interface Page {
   description: string;
   frontmatter: Record<string, unknown>;
   headings: Heading[];
+  /** リンク検証用。h1を含む全見出しのid */
+  anchorIds: string[];
+  /** リンク検証用。Markdown内の生href一覧 */
+  links: string[];
   contentHtml: string;
   plainText: string;
   prev: PageRef | null;

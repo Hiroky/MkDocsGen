@@ -164,4 +164,28 @@ describe("createConverter", () => {
       expect(plainText).not.toMatch(/\s{2,}/);
     });
   });
+
+  describe("C-5 リンク検証用の収集", () => {
+    it("書き換え前の生hrefをlinksに収集する", async () => {
+      // 検証は.mdパスで行うため、書き換え前のhrefを残す
+      const converter = await createConverter(createMarkdownConfig(), createSilentLogger());
+      const { links, html } = converter.convert(
+        "[a](./a.md#sec)\n\n[b](#local)\n\n[ext](https://example.com)\n",
+        "index.md"
+      );
+
+      expect(links).toEqual(["./a.md#sec", "#local", "https://example.com"]);
+      // HTML側は従来どおり.md→.htmlへ書き換わる
+      expect(html).toContain('href="./a.html#sec"');
+    });
+
+    it("h1を含む全見出しidをanchorIdsに収集する", async () => {
+      // headingsはh2+のまま、検証用にはh1も載せる
+      const converter = await createConverter(createMarkdownConfig(), createSilentLogger());
+      const { headings, anchorIds } = converter.convert("# Title\n\n## Setup\n", "index.md");
+
+      expect(anchorIds).toEqual(["title", "setup"]);
+      expect(headings).toEqual([{ level: 2, text: "Setup", anchorId: "setup" }]);
+    });
+  });
 });
