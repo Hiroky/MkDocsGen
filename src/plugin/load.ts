@@ -41,9 +41,12 @@ export async function loadPlugins(config: ResolvedConfig): Promise<Plugin[]>
     }
 
     // ESMとして動的importする（file:// URLが必要）
+    // Nodeのモジュールキャッシュ回避のため、mtimeをクエリに付けて同一serve内の書き換えに追従する
     let mod: { default?: unknown };
     try {
-      mod = await import(pathToFileURL(absPath).href);
+      const mtimeMs = fs.statSync(absPath).mtimeMs;
+      const importUrl = `${pathToFileURL(absPath).href}?t=${mtimeMs}`;
+      mod = await import(importUrl);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       throw new PluginError(

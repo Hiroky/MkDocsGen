@@ -179,6 +179,27 @@ describe("plugin hooks", () => {
     }
   });
 
+  it("transformMarkdownがstring以外を返すとPluginErrorになる", async () => {
+    // return忘れのundefinedで後段変換が壊れないよう検証する
+    const plugins: Plugin[] = [{
+      name: "bad-md",
+      // 意図的に不正な戻り値を返す
+      transformMarkdown: (() => undefined) as unknown as Plugin["transformMarkdown"]
+    }];
+    await expect(runTransformMarkdown(plugins, "x", fakePageMeta())).rejects.toBeInstanceOf(PluginError);
+    await expect(runTransformMarkdown(plugins, "x", fakePageMeta())).rejects.toThrow(/string/);
+  });
+
+  it("transformHtmlがstring以外を返すとPluginErrorになる", async () => {
+    // return忘れのundefinedで最終HTMLが壊れないよう検証する
+    const plugins: Plugin[] = [{
+      name: "bad-html",
+      transformHtml: (() => undefined) as unknown as Plugin["transformHtml"]
+    }];
+    await expect(runTransformHtml(plugins, "h", fakePage())).rejects.toBeInstanceOf(PluginError);
+    await expect(runTransformHtml(plugins, "h", fakePage())).rejects.toThrow(/string/);
+  });
+
   it("フックへ渡すpage / config参照が正しい", async () => {
     // options受け渡しはload側、ここではページ・設定の引数を検証する
     const config = fakeConfig();

@@ -99,6 +99,8 @@ export async function buildSite(
     plugins?: Plugin[];
     /** trueならconfigResolvedをスキップする */
     skipConfigResolved?: boolean;
+    /** trueならbuildEndをスキップする（serve経路用。副作用プラグインの連打を防ぐ） */
+    skipBuildEnd?: boolean;
   } = { strict: false }
 ): Promise<SiteBuildOutput>
 {
@@ -128,8 +130,10 @@ export async function buildSite(
   // アセット・検索インデックス・全ページHTMLを書き出す
   const context = await writeFullSite(config, pages, navResult.nav, logger, plugins);
 
-  // 全ページ出力後のビルド終了フックを実行する
-  await runBuildEnd(plugins, context);
+  // buildEndはCLIのrunBuild経路でのみ実行する（serveのfullBuild/増分ではスキップ）
+  if (!options.skipBuildEnd) {
+    await runBuildEnd(plugins, context);
+  }
 
   // サマリを表示し、strict判定を行う
   const result: BuildResult = {
@@ -165,7 +169,13 @@ export async function convertSourcesToPages(
   orderedPages: PageSource[],
   navResult: { breadcrumbsMap: Map<string, Page["breadcrumbs"]>; nav: NavNode[] },
   existingConverter?: Awaited<ReturnType<typeof createConverter>>,
-  plugins: Plugin[] = []
+  plugins: Plugin[] = [],
+  reuse?: {
+    /** 再変換するsourcePath集合。未指定なら全ページを変換する */
+    onlySourcePaths: Set<string>;
+    /** 再利用する前回ビルドのPage一覧 */
+    previousPages: Map<string, Page>;
+  }
 ): Promise<{ pages: Page[]; converter: Awaited<ReturnType<typeof createConverter>> }>
 {
   const relations = assignPrevNext(orderedPages);
@@ -173,6 +183,26 @@ export async function convertSourcesToPages(
   const converter = existingConverter ?? await createConverter(config, logger);
   const pages: Page[] = [];
   for (const source of orderedPages) {
+    const relation = relations.get(source.sourcePath) ?? { prev: null, next: null };
+    const breadcrumbs = navResult.breadcrumbsMap.get(source.sourcePath) ?? [];
+
+    // 増分ビルド: 変更されていないページは変換をスキップし前回結果を流用する
+    if (reuse && !reuse.onlySourcePaths.has(source.sourcePath)) {
+      const previous = reuse.previousPages.get(source.sourcePath);
+      if (previous) {
+        // prev/next/breadcrumbsだけ最新ナビに合わせて更新する
+        pages.push({
+          ...previous,
+          prev: relation.prev,
+          next: relation.next,
+          breadcrumbs
+        });
+        continue;
+      }
+      // 前回に無い場合はフォールバックで変換する（防御的）
+      logger.debug(`増分ビルド: 前回ページが無いため再変換します: ${source.sourcePath}`);
+    }
+
     // Markdown変換前にプラグインでソースを加工する
     const markdown = await runTransformMarkdown(
       plugins,
@@ -180,7 +210,6 @@ export async function convertSourcesToPages(
       toPageMeta(source)
     );
     const converted = converter.convert(markdown, source.sourcePath);
-    const relation = relations.get(source.sourcePath) ?? { prev: null, next: null };
     pages.push({
       sourcePath: source.sourcePath,
       outputPath: source.outputPath,
@@ -195,7 +224,7 @@ export async function convertSourcesToPages(
       plainText: converted.plainText,
       prev: relation.prev,
       next: relation.next,
-      breadcrumbs: navResult.breadcrumbsMap.get(source.sourcePath) ?? []
+      breadcrumbs
     });
   }
   return { pages, converter };

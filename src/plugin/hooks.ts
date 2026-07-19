@@ -60,7 +60,12 @@ export async function runTransformMarkdown(
     }
     try {
       // 前段の返り値を次段の入力にする
-      current = await plugin.transformMarkdown(current, page);
+      const next = await plugin.transformMarkdown(current, page);
+      // return忘れ等でundefinedになると後段変換が壊れるため型を検証する
+      if (typeof next !== "string") {
+        throw new Error(`transformMarkdownはstringを返す必要があります（実際: ${typeof next}）`);
+      }
+      current = next;
     } catch (error) {
       throw wrapHookError(plugin.name, "transformMarkdown", error);
     }
@@ -84,7 +89,12 @@ export async function runTransformHtml(
     }
     try {
       // 前段の返り値を次段の入力にする
-      current = await plugin.transformHtml(current, page);
+      const next = await plugin.transformHtml(current, page);
+      // return忘れ等でundefinedになると最終HTMLが壊れるため型を検証する
+      if (typeof next !== "string") {
+        throw new Error(`transformHtmlはstringを返す必要があります（実際: ${typeof next}）`);
+      }
+      current = next;
     } catch (error) {
       throw wrapHookError(plugin.name, "transformHtml", error);
     }

@@ -158,7 +158,16 @@ async function handleHttpRequest(
   }
 
   // URLパスをルート配下の安全なファイルパスへ解決する
-  const relativePath = decodeURIComponent(url.pathname).replace(/^\/+/, "");
+  // 不正な%列はdecodeURIComponentが例外を投げるため、ここで捕らえて400にする
+  let decodedPathname: string;
+  try {
+    decodedPathname = decodeURIComponent(url.pathname);
+  } catch {
+    res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("Bad Request");
+    return;
+  }
+  const relativePath = decodedPathname.replace(/^\/+/, "");
   const candidate = resolveSafePath(rootDir, relativePath === "" ? "index.html" : relativePath);
   if (!candidate) {
     res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });

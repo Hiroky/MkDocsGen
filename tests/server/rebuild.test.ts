@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { loadConfig } from "../../src/config/load.js";
@@ -107,6 +107,109 @@ describe("rebuild helpers", () => {
       expect(classifyPath(path.join(root, "docs/index.md"), config)).toBe("docs");
       expect(classifyPath(path.join(root, "theme_overrides/page.njk"), config)).toBe("theme");
       expect(classifyPath(path.join(root, "site/index.html"), config)).toBe("ignore");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("増分ビルドは変更ページだけMarkdown変換する", async () => {
+    // 仕様: 変更ページのみ再変換。書き込み差分だけでなく変換コストも差分にする
+    const { fullBuild, rebuildDocs } = await import("../../src/server/rebuild.js");
+    const root = createTempProject();
+    const logger = silentLogger();
+    const config = loadConfig(path.join(root, "mkdocsgen.yml"));
+
+    try {
+      const state = await fullBuild(config, logger);
+      const convertSpy = vi.spyOn(state.converter, "convert");
+
+      fs.writeFileSync(
+        path.join(root, "docs/guide/a.md"),
+        "---\ntitle: Page A\n---\n\n# Page A\n\nOnly A body.\n",
+        "utf-8"
+      );
+
+      convertSpy.mockClear();
+      const result = await rebuildDocs(state, ["guide/a.md"], logger);
+      expect(result.mode).toBe("partial");
+      // 変更されたguide/a.mdだけconvertされる（index.md等は呼ばれない）
+      expect(convertSpy.mock.calls.map((call) => call[1])).toEqual(["guide/a.md"]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("増分ビルドではbuildEndを呼ばない", async () => {
+    // serve中の保存連打でConfluence等の副作用プラグインが毎回同期されないようにする
+    const { fullBuild, rebuildDocs } = await import("../../src/server/rebuild.js");
+    const root = createTempProject();
+    const logger = silentLogger();
+    const config = loadConfig(path.join(root, "mkdocsgen.yml"));
+
+    try {
+      const state = await fullBuild(config, logger);
+      let buildEndCount = 0;
+      // 既存プラグインに加え、カウント用のスタブを差し込む
+      state.plugins = [
+        ...state.plugins,
+        {
+          name: "count-build-end",
+          buildEnd() {
+            buildEndCount += 1;
+          }
+        }
+      ];
+
+      fs.writeFileSync(
+        path.join(root, "docs/guide/a.md"),
+        "---\ntitle: Page A\n---\n\n# Page A\n\nBody again.\n",
+        "utf-8"
+      );
+
+      const result = await rebuildDocs(state, ["guide/a.md"], logger);
+      expect(result.mode).toBe("partial");
+      expect(buildEndCount).toBe(0);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("fullBuild（serve経路）ではbuildEndを呼ばない", async () => {
+    // 初回起動・設定/テーマ変更でも副作用プラグインを動かさない
+    const { fullBuild } = await import("../../src/server/rebuild.js");
+    const root = createTempProject();
+    const logger = silentLogger();
+
+    // カウント用プラグインをプロジェクトに置く
+    fs.mkdirSync(path.join(root, "plugins"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, "plugins/count-end.mjs"),
+      [
+        "let count = 0;",
+        "export default function createPlugin() {",
+        "  return {",
+        "    name: 'count-end',",
+        "    buildEnd() { count += 1; },",
+        "    getCount() { return count; }",
+        "  };",
+        "}"
+      ].join("\n"),
+      "utf-8"
+    );
+    const yml = fs.readFileSync(path.join(root, "mkdocsgen.yml"), "utf-8");
+    fs.writeFileSync(
+      path.join(root, "mkdocsgen.yml"),
+      `${yml}\nplugins:\n  - path: ./plugins/count-end.mjs\n`,
+      "utf-8"
+    );
+    const config = loadConfig(path.join(root, "mkdocsgen.yml"));
+
+    try {
+      const state = await fullBuild(config, logger);
+      const plugin = state.plugins.find((p) => p.name === "count-end") as
+        | { getCount?: () => number }
+        | undefined;
+      expect(plugin?.getCount?.()).toBe(0);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

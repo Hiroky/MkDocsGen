@@ -43,3 +43,8 @@
 - **事象**: レビューで `--clean` が `output_dir: .` / `docs_dir` 同一を許可し、ソースごと削除可能と指摘された
 - **原因**: 安全判定が「configDir配下」だけ見て、ルート自身やdocs包含を拒否していなかった
 - **ルール**: 破壊的削除のガードは「配下であること」に加え、ルート自身・ソースディレクトリ同一/包含を必ず拒否する
+
+- **日付**: 2026-07-19
+- **事象**: 増分ビルドが書き込みだけ差分で変換は全ページ、serve増分でbuildEnd連打、プラグインESMキャッシュ固定、transform戻り値未検証、不正%で500
+- **原因**: 「再出力」と「再変換」を同一視した。副作用フックをserve経路にも載せた。動的importのキャッシュと戻り値契約を考慮不足
+- **ルール**: 増分は変更ページのみconvert。buildEndはCLIのrunBuild（mkdocsgen build）のみで、serveのfullBuild/増分ではスキップ。プラグインimportはmtimeクエリでキャッシュ破棄。transformはstring検証。decodeURIComponent失敗は400

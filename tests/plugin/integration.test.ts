@@ -194,4 +194,37 @@ describe("plugin integration in build", () => {
     expect(posB).toBeGreaterThan(-1);
     expect(posA).toBeLessThan(posB);
   });
+
+  it("CLIのrunBuildではbuildEndが実行される", async () => {
+    // serve経路と対比し、mkdocsgen buildでは副作用フックが動くこと
+    const markerPath = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "mkdocsgen-buildend-")),
+      "called.txt"
+    );
+    cleanups.push(() => fs.rmSync(path.dirname(markerPath), { recursive: true, force: true }));
+
+    const { configPath } = createPluginBuildProject({
+      pluginsYml: "  - path: ./plugins/end.mjs\n",
+      pluginFiles: {
+        "plugins/end.mjs": [
+          "import fs from 'node:fs';",
+          `const marker = ${JSON.stringify(markerPath)};`,
+          "export default () => ({",
+          "  name: 'end',",
+          "  buildEnd() { fs.writeFileSync(marker, 'ok', 'utf-8'); }",
+          "});"
+        ].join("\n")
+      }
+    });
+
+    await runBuild({
+      configPath,
+      strict: false,
+      clean: false,
+      verbose: false
+    }, silentLogger());
+
+    expect(fs.existsSync(markerPath)).toBe(true);
+    expect(fs.readFileSync(markerPath, "utf-8")).toBe("ok");
+  });
 });

@@ -10,7 +10,6 @@ import {
 import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
 import type { createConverter } from "../markdown/convert.js";
-import { runBuildEnd } from "../plugin/hooks.js";
 import type { Plugin } from "../plugin/types.js";
 import { Renderer } from "../render/renderer.js";
 import { buildNav } from "../scanner/nav.js";
@@ -93,8 +92,10 @@ export async function fullBuild(
 {
   // 既存コンバータ・プラグインがあれば渡し、再初期化を避ける
   // 設定再読込時はpluginsを渡さず、buildSite側で再ロード＋configResolvedする
+  // serve経路ではbuildEndをスキップし、Confluence等の副作用をmkdocsgen buildに限定する
   const output = await buildSite(config, logger, {
     strict: false,
+    skipBuildEnd: true,
     ...(existingConverter ? { converter: existingConverter } : {}),
     ...(existingPlugins ? { plugins: existingPlugins, skipConfigResolved: true } : {})
   });
@@ -131,11 +132,11 @@ export async function rebuildDocs(
     const converted = await convertSourcesToPages(
       config, logger, navResult.orderedPages, navResult, converter, plugins
     );
-    const context = await writeFullSite(config, converted.pages, navResult.nav, logger, plugins);
+    await writeFullSite(config, converted.pages, navResult.nav, logger, plugins);
     // 削除されたページの出力HTMLを取り除く
     removeStaleOutputs(config, previousOutputs, converted.pages);
-    // フル再出力後もbuildEndを呼ぶ（エクスポート系プラグインのため）
-    await runBuildEnd(plugins, context);
+    // serve経路の再ビルドではbuildEndを呼ばない（副作用プラグインの連打同期を防ぐ）
+    // buildEndはCLIのrunBuild（mkdocsgen build）でのみ実行する
     return {
       mode: "full",
       rebuiltPaths: converted.pages.map((page) => page.sourcePath),
@@ -154,8 +155,11 @@ export async function rebuildDocs(
   const changedSet = new Set(
     changedSourcePaths.map((p) => p.split(path.sep).join("/")).filter((p) => p.endsWith(".md"))
   );
+  const previousPages = new Map(state.pages.map((page) => [page.sourcePath, page]));
+  // 変換コスト（Shiki等）も差分にするため、変更ページだけconvertする
   const converted = await convertSourcesToPages(
-    config, logger, navResult.orderedPages, navResult, converter, plugins
+    config, logger, navResult.orderedPages, navResult, converter, plugins,
+    { onlySourcePaths: changedSet, previousPages }
   );
   const rebuiltPaths: string[] = [];
   const renderer = new Renderer(config);
@@ -172,8 +176,7 @@ export async function rebuildDocs(
 
   // 検索インデックスは全文から作り直す（ページ数が少なくコストが小さい）
   writeSearchIndex(config.outputDirAbs, buildSearchIndex(converted.pages));
-  // 増分でもbuildEndを呼ぶ（成果物後処理の一貫性のため）
-  await runBuildEnd(plugins, context);
+  // 増分ではbuildEndを呼ばない（serve保存連打で副作用プラグインが毎回同期されないようにする）
   logger.info(`増分ビルド: ${rebuiltPaths.length}ページを更新`);
 
   return {

@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { PluginError, loadPlugins } from "../../src/plugin/load.js";
 import { createPluginFixture } from "./helpers.js";
@@ -100,5 +101,33 @@ describe("loadPlugins", () => {
 
     await expect(loadPlugins(fixture.config)).rejects.toBeInstanceOf(PluginError);
     await expect(loadPlugins(fixture.config)).rejects.toThrow(/name/);
+  });
+
+  it("同一プロセス内でプラグインファイルを書き換えたら新しいファクトリが使われる", async () => {
+    // Node ESMキャッシュに乗っても、mtime付きURLで再読込できるようにする
+    const fixture = createPluginFixture({
+      plugins: [{ path: "./plugins/versioned.mjs" }],
+      pluginFiles: {
+        "plugins/versioned.mjs": "export default () => ({ name: 'v1', label: 'first' });\n"
+      }
+    });
+    cleanups.push(fixture.cleanup);
+
+    const first = await loadPlugins(fixture.config);
+    expect(first[0]?.name).toBe("v1");
+    expect((first[0] as { label?: string }).label).toBe("first");
+
+    // 内容を書き換え、mtimeが進むよう少し待ってから書き込む
+    const pluginPath = `${fixture.root}/plugins/versioned.mjs`;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    fs.writeFileSync(
+      pluginPath,
+      "export default () => ({ name: 'v2', label: 'second' });\n",
+      "utf-8"
+    );
+
+    const second = await loadPlugins(fixture.config);
+    expect(second[0]?.name).toBe("v2");
+    expect((second[0] as { label?: string }).label).toBe("second");
   });
 });
