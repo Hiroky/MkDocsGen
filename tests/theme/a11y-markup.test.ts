@@ -44,7 +44,13 @@ describe("theme a11y markup", () => {
     expect(mainJs).toContain('setAttribute("aria-current"');
     expect(mainJs).toContain('removeAttribute("aria-current")');
     // Escapeでドロワーを閉じる分岐があること
-    expect(mainJs).toMatch(/initDrawer[\s\S]*Escape[\s\S]*setOpen\(false\)/);
+    expect(mainJs).toMatch(/initDrawer[\s\S]*Escape[\s\S]*setOpen\(false/);
+    // 閉じたドロワーは inert / aria-hidden でフォーカス不可にし、トグルへフォーカス復帰する
+    expect(mainJs).toContain('setAttribute("inert"');
+    expect(mainJs).toContain('setAttribute("aria-hidden", "true")');
+    expect(mainJs).toContain("toggle.focus()");
+    // 検索結果が開いている Escape は stopPropagation し、ドロワーと二重閉じしない
+    expect(mainJs).toMatch(/Escape[\s\S]*stopPropagation/);
   });
 
   it("main.cssがインタラクティブ要素の:focus-visibleを定義する", () => {

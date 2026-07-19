@@ -17,9 +17,10 @@ MkDocsGen でドキュメントサイトを作る最短手順です。
 
 ```bash
 npm install
-# 開発中のCLIはそのまま使える
-npm run build   # dist/ へコンパイル（npx mkdocsgen 用）
+npm run build   # dist/ へコンパイル（npx mkdocsgen 用。bin は dist/cli/index.js）
 ```
+
+コンパイルせずに CLI を試す場合は `npm run dev -- <args>` を使います。
 
 ## プロジェクトを初期化する
 
@@ -27,6 +28,8 @@ npm run build   # dist/ へコンパイル（npx mkdocsgen 用）
 
 ```bash
 npx mkdocsgen init
+# または
+npm run dev -- init
 ```
 
 次のファイルが生成されます（既存ファイルはスキップ＋警告）。

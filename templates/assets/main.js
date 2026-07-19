@@ -189,18 +189,53 @@
   function initDrawer() {
     const toggle = document.querySelector("[data-menu-toggle]");
     const overlay = document.querySelector("[data-sidebar-overlay]");
+    const sidebar = document.querySelector("[data-sidebar]");
     if (!toggle) {
       return;
     }
 
     /**
+     * ドロワー幅（モバイル）かどうかを判定する
+     */
+    function isDrawerViewport() {
+      return !window.matchMedia("(min-width: 769px)").matches;
+    }
+
+    /**
+     * 閉じたドロワーをフォーカス不可・読み上げ対象外にする（画面外フォーカス残留を防ぐ）
+     */
+    function syncSidebarA11y(open) {
+      if (!sidebar) {
+        return;
+      }
+      // デスクトップでは常に可視なので inert / aria-hidden は付けない
+      if (isDrawerViewport() && !open) {
+        sidebar.setAttribute("inert", "");
+        sidebar.setAttribute("aria-hidden", "true");
+      } else {
+        sidebar.removeAttribute("inert");
+        sidebar.removeAttribute("aria-hidden");
+      }
+    }
+
+    /**
      * ドロワーの開閉状態を反映する
      */
-    function setOpen(open) {
+    function setOpen(open, options) {
+      const restoreFocus = options && options.restoreFocus === true;
+      // 閉じる前にサイドバー内へフォーカスがあるか記録する
+      const focusInside = Boolean(sidebar && sidebar.contains(document.activeElement));
+
       document.body.classList.toggle("sidebar-open", open);
       toggle.setAttribute("aria-expanded", String(open));
       if (overlay) {
         overlay.hidden = !open;
+      }
+      syncSidebarA11y(open);
+
+      // Escape等で閉じたあと、画面外リンクにフォーカスが残らないようトグルへ戻す
+      if (!open && (restoreFocus || focusInside)) {
+        toggle.focus();
       }
     }
 
@@ -210,20 +245,26 @@
     });
 
     if (overlay) {
-      overlay.addEventListener("click", () => setOpen(false));
+      overlay.addEventListener("click", () => setOpen(false, { restoreFocus: true }));
     }
 
-    // Escapeでドロワーを閉じる（キーボード操作の要件）
+    // Escapeでドロワーを閉じ、フォーカスをメニューボタンへ戻す
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && toggle.getAttribute("aria-expanded") === "true") {
-        setOpen(false);
+        setOpen(false, { restoreFocus: true });
       }
     });
+
+    // 初期表示（モバイル閉じ）でも inert を揃える
+    syncSidebarA11y(toggle.getAttribute("aria-expanded") === "true");
 
     // 幅が広がったらドロワー状態をリセットする
     window.matchMedia("(min-width: 769px)").addEventListener("change", (event) => {
       if (event.matches) {
         setOpen(false);
+      } else {
+        // 狭幅へ戻ったときは現在の開閉に合わせて inert を再同期する
+        syncSidebarA11y(toggle.getAttribute("aria-expanded") === "true");
       }
     });
   }
@@ -575,8 +616,13 @@
 
     input.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
+        // 結果が開いているときだけ伝播を止め、ドロワーと二重に閉じないようにする
+        const resultsOpen = input.getAttribute("aria-expanded") === "true";
         closeResults();
         input.blur();
+        if (resultsOpen) {
+          event.stopPropagation();
+        }
         return;
       }
       if (event.key === "ArrowDown") {

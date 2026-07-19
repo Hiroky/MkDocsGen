@@ -20,9 +20,18 @@ Markdownファイル群から、検索・テーマ切替・APIドキュメント
 
 ```bash
 npm install
+npm run build           # dist/ を生成してから npx mkdocsgen を使う
 npx mkdocsgen init
 npx mkdocsgen build
 npx mkdocsgen serve
+```
+
+コンパイルなしで動かす場合:
+
+```bash
+npm run dev -- init
+npm run dev -- build
+npm run dev -- serve
 ```
 
 このリポジトリ自体のドキュメントは次でビルドできます。

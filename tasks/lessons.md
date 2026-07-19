@@ -15,6 +15,11 @@
 ## 記録
 
 - **日付**: 2026-07-19
+- **事象**: ドロワーEscapeでフォーカス未復帰・inert未設定、検索Escapeがドロワーも閉じる、READMEがbuild前のnpx mkdocsgenを案内
+- **原因**: Escape追加時にフォーカス/inertとイベント伝播を見落とした。binがdist参照なのにクローン直後手順を省略した
+- **ルール**: オーバーレイ/ドロワー閉じはフォーカス復帰と inert/aria-hidden をセット。前面UIのEscapeは stopPropagation。READMEのnpx手順は必ず npm run build を先に書く（または npm run dev を案内）
+
+- **日付**: 2026-07-19
 - **事象**: リンク検証がパーセントエンコード済み日本語アンカーをデコードせず、常にアンカー切れになっていた
 - **原因**: markdown-itのhrefエンコードとslugifyの生文字列をそのまま比較していた
 - **ルール**: アンカー照合前は decodeURIComponent（失敗時は生文字フォールバック）。静的サイト前提で fetch も使わない
