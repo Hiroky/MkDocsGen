@@ -191,10 +191,10 @@ graph TD
 
 **実装内容**
 
-- [ ] プラグインローダー（ローカルESMファイルの読み込み、`PluginFactory` への `options` 受け渡し）
-- [ ] ライフサイクルフック実行（`configResolved` / `transformMarkdown` / `transformHtml` / `buildEnd`、列挙順の直列実行）
-- [ ] フック内例外のハンドリング（プラグイン名 + スタックトレース付きエラー終了）
-- [ ] Confluenceエクスポート参考実装（`examples/plugins/confluence-export.mjs`、認証情報は環境変数、コアのテスト対象外）
+- [x] プラグインローダー（ローカルESMファイルの読み込み、`PluginFactory` への `options` 受け渡し）
+- [x] ライフサイクルフック実行（`configResolved` / `transformMarkdown` / `transformHtml` / `buildEnd`、列挙順の直列実行）
+- [x] フック内例外のハンドリング（プラグイン名 + スタックトレース付きエラー終了）
+- [x] Confluenceエクスポート参考実装（`examples/plugins/confluence-export.mjs`、認証情報は環境変数、コアのテスト対象外）
 
 **完了条件**: フック呼び出し順・options受け渡し・例外伝播の単体テストが通り、`transformHtml` の返り値が最終出力へ反映される統合テストが通る。
 

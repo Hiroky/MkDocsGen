@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { BuildError, runBuild } from "../build/pipeline.js";
 import { ConfigError } from "../config/load.js";
 import { Logger } from "../logger.js";
+import { PluginError } from "../plugin/load.js";
 import { runServe } from "../server/serve.js";
 import { runInit } from "./init.js";
 
@@ -51,9 +52,14 @@ export function createProgram(): Command
           verbose: options.verbose
         }, logger);
       } catch (error) {
-        // ConfigError / BuildErrorはメッセージのみ、想定外の例外はスタック付きで表示する
-        if (error instanceof ConfigError || error instanceof BuildError) {
-          logger.error(error.message);
+        // ConfigError / BuildError / PluginErrorはメッセージのみ、想定外はスタック付き
+        if (
+          error instanceof ConfigError ||
+          error instanceof BuildError ||
+          error instanceof PluginError
+        ) {
+          // PluginErrorはスタックに元例外を埋め込んでいるので、あればそれを優先する
+          logger.error(error instanceof PluginError && error.stack ? error.stack : error.message);
         } else if (error instanceof Error) {
           logger.error(error.stack ?? error.message);
         } else {
@@ -89,8 +95,12 @@ export function createProgram(): Command
         }, logger);
         // サーバーは常駐するため、ここではreturnせずイベントループを維持する
       } catch (error) {
-        if (error instanceof ConfigError || error instanceof BuildError) {
-          logger.error(error.message);
+        if (
+          error instanceof ConfigError ||
+          error instanceof BuildError ||
+          error instanceof PluginError
+        ) {
+          logger.error(error instanceof PluginError && error.stack ? error.stack : error.message);
         } else if (error instanceof Error) {
           logger.error(error.stack ?? error.message);
         } else {

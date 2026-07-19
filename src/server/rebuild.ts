@@ -10,6 +10,8 @@ import {
 import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
 import type { createConverter } from "../markdown/convert.js";
+import { runBuildEnd } from "../plugin/hooks.js";
+import type { Plugin } from "../plugin/types.js";
 import { Renderer } from "../render/renderer.js";
 import { buildNav } from "../scanner/nav.js";
 import { scanPages } from "../scanner/scan.js";
@@ -27,6 +29,8 @@ export interface DevBuildState {
   navSignature: string;
   /** 増分ビルドで再利用する変換器（Shiki初期化済み） */
   converter: MarkdownConverter;
+  /** 増分ビルドで再利用するプラグイン */
+  plugins: Plugin[];
 }
 
 /** docs変更後の再ビルド結果 */
@@ -83,20 +87,24 @@ export function classifyPath(absPath: string, config: ResolvedConfig): WatchCate
 export async function fullBuild(
   config: ResolvedConfig,
   logger: Logger,
-  existingConverter?: MarkdownConverter
+  existingConverter?: MarkdownConverter,
+  existingPlugins?: Plugin[]
 ): Promise<DevBuildState>
 {
-  // 既存コンバータがあれば渡し、Shikiの再初期化を避ける
+  // 既存コンバータ・プラグインがあれば渡し、再初期化を避ける
+  // 設定再読込時はpluginsを渡さず、buildSite側で再ロード＋configResolvedする
   const output = await buildSite(config, logger, {
     strict: false,
-    ...(existingConverter ? { converter: existingConverter } : {})
+    ...(existingConverter ? { converter: existingConverter } : {}),
+    ...(existingPlugins ? { plugins: existingPlugins, skipConfigResolved: true } : {})
   });
   return {
     config,
     pages: output.pages,
     nav: output.nav,
     navSignature: output.navSignature,
-    converter: output.converter
+    converter: output.converter,
+    plugins: output.plugins
   };
 }
 
@@ -109,7 +117,7 @@ export async function rebuildDocs(
   logger: Logger
 ): Promise<DocsRebuildResult>
 {
-  const { config, converter } = state;
+  const { config, converter, plugins } = state;
   const previousOutputs = new Map(state.pages.map((page) => [page.sourcePath, page.outputPath]));
 
   // 最新のソースを走査してナビを組み直す
@@ -121,11 +129,13 @@ export async function rebuildDocs(
   if (nextSignature !== state.navSignature) {
     logger.info("ナビ影響の変更を検出したためフル再ビルドします");
     const converted = await convertSourcesToPages(
-      config, logger, navResult.orderedPages, navResult, converter
+      config, logger, navResult.orderedPages, navResult, converter, plugins
     );
-    writeFullSite(config, converted.pages, navResult.nav, logger);
+    const context = await writeFullSite(config, converted.pages, navResult.nav, logger, plugins);
     // 削除されたページの出力HTMLを取り除く
     removeStaleOutputs(config, previousOutputs, converted.pages);
+    // フル再出力後もbuildEndを呼ぶ（エクスポート系プラグインのため）
+    await runBuildEnd(plugins, context);
     return {
       mode: "full",
       rebuiltPaths: converted.pages.map((page) => page.sourcePath),
@@ -134,7 +144,8 @@ export async function rebuildDocs(
         pages: converted.pages,
         nav: navResult.nav,
         navSignature: nextSignature,
-        converter: converted.converter
+        converter: converted.converter,
+        plugins
       }
     };
   }
@@ -144,7 +155,7 @@ export async function rebuildDocs(
     changedSourcePaths.map((p) => p.split(path.sep).join("/")).filter((p) => p.endsWith(".md"))
   );
   const converted = await convertSourcesToPages(
-    config, logger, navResult.orderedPages, navResult, converter
+    config, logger, navResult.orderedPages, navResult, converter, plugins
   );
   const rebuiltPaths: string[] = [];
   const renderer = new Renderer(config);
@@ -155,12 +166,14 @@ export async function rebuildDocs(
       continue;
     }
     // 変更ページだけHTMLを書き直す
-    writePageHtml(config, page, context, renderer, logger);
+    await writePageHtml(config, page, context, renderer, logger, plugins);
     rebuiltPaths.push(page.sourcePath);
   }
 
   // 検索インデックスは全文から作り直す（ページ数が少なくコストが小さい）
   writeSearchIndex(config.outputDirAbs, buildSearchIndex(converted.pages));
+  // 増分でもbuildEndを呼ぶ（成果物後処理の一貫性のため）
+  await runBuildEnd(plugins, context);
   logger.info(`増分ビルド: ${rebuiltPaths.length}ページを更新`);
 
   return {
@@ -171,7 +184,8 @@ export async function rebuildDocs(
       pages: converted.pages,
       nav: navResult.nav,
       navSignature: nextSignature,
-      converter: converted.converter
+      converter: converted.converter,
+      plugins
     }
   };
 }

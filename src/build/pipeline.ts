@@ -4,6 +4,14 @@ import { loadConfig } from "../config/load.js";
 import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
 import { createConverter } from "../markdown/convert.js";
+import {
+  runBuildEnd,
+  runConfigResolved,
+  runTransformHtml,
+  runTransformMarkdown
+} from "../plugin/hooks.js";
+import { loadPlugins } from "../plugin/load.js";
+import type { PageMeta, Plugin } from "../plugin/types.js";
 import { copyAssets } from "../render/assets.js";
 import { Renderer } from "../render/renderer.js";
 import { assignPrevNext, buildNav } from "../scanner/nav.js";
@@ -36,6 +44,8 @@ export interface SiteBuildOutput {
   navSignature: string;
   /** 再利用可能なMarkdown変換器 */
   converter: Awaited<ReturnType<typeof createConverter>>;
+  /** 読み込み済みプラグイン（増分ビルドで再利用する） */
+  plugins: Plugin[];
 }
 
 /**
@@ -85,17 +95,30 @@ export async function buildSite(
     strict: boolean;
     silentSummary?: boolean;
     converter?: Awaited<ReturnType<typeof createConverter>>;
+    /** 呼び出し側で既にロード済みのプラグイン（あれば再利用） */
+    plugins?: Plugin[];
+    /** trueならconfigResolvedをスキップする */
+    skipConfigResolved?: boolean;
   } = { strict: false }
 ): Promise<SiteBuildOutput>
 {
   const startedAt = Date.now();
+
+  // プラグインをロードし、設定確定直後フックを実行する
+  const plugins = options.plugins ?? await loadPlugins(config);
+  if (!options.skipConfigResolved) {
+    await runConfigResolved(plugins, config);
+  }
+  if (plugins.length > 0) {
+    logger.debug(`プラグインを${plugins.length}件ロードしました`);
+  }
 
   // ページ走査 → ナビ構築 → prev/next割り当て
   const sources = scanPages(config, logger);
   logger.debug(`走査ページ数: ${sources.length}`);
   const navResult = buildNav(sources, config, logger);
   const converted = await convertSourcesToPages(
-    config, logger, navResult.orderedPages, navResult, options.converter
+    config, logger, navResult.orderedPages, navResult, options.converter, plugins
   );
   const pages = converted.pages;
 
@@ -103,7 +126,10 @@ export async function buildSite(
   validateLinks(pages, logger);
 
   // アセット・検索インデックス・全ページHTMLを書き出す
-  writeFullSite(config, pages, navResult.nav, logger);
+  const context = await writeFullSite(config, pages, navResult.nav, logger, plugins);
+
+  // 全ページ出力後のビルド終了フックを実行する
+  await runBuildEnd(plugins, context);
 
   // サマリを表示し、strict判定を行う
   const result: BuildResult = {
@@ -125,7 +151,8 @@ export async function buildSite(
     pages,
     nav: navResult.nav,
     navSignature: computeNavSignature(navResult.orderedPages),
-    converter: converted.converter
+    converter: converted.converter,
+    plugins
   };
 }
 
@@ -137,16 +164,24 @@ export async function convertSourcesToPages(
   logger: Logger,
   orderedPages: PageSource[],
   navResult: { breadcrumbsMap: Map<string, Page["breadcrumbs"]>; nav: NavNode[] },
-  existingConverter?: Awaited<ReturnType<typeof createConverter>>
+  existingConverter?: Awaited<ReturnType<typeof createConverter>>,
+  plugins: Plugin[] = []
 ): Promise<{ pages: Page[]; converter: Awaited<ReturnType<typeof createConverter>> }>
 {
   const relations = assignPrevNext(orderedPages);
   // serveの増分ではShiki初期化済みコンバータを再利用し、毎回の起動コストを避ける
   const converter = existingConverter ?? await createConverter(config, logger);
-  const pages = orderedPages.map((source) => {
-    const converted = converter.convert(source.markdown, source.sourcePath);
+  const pages: Page[] = [];
+  for (const source of orderedPages) {
+    // Markdown変換前にプラグインでソースを加工する
+    const markdown = await runTransformMarkdown(
+      plugins,
+      source.markdown,
+      toPageMeta(source)
+    );
+    const converted = converter.convert(markdown, source.sourcePath);
     const relation = relations.get(source.sourcePath) ?? { prev: null, next: null };
-    return {
+    pages.push({
       sourcePath: source.sourcePath,
       outputPath: source.outputPath,
       url: source.url,
@@ -161,20 +196,21 @@ export async function convertSourcesToPages(
       prev: relation.prev,
       next: relation.next,
       breadcrumbs: navResult.breadcrumbsMap.get(source.sourcePath) ?? []
-    };
-  });
+    });
+  }
   return { pages, converter };
 }
 
 /**
  * アセット・検索インデックス・全ページHTMLを出力する
  */
-export function writeFullSite(
+export async function writeFullSite(
   config: ResolvedConfig,
   pages: Page[],
   nav: NavNode[],
-  logger: Logger
-): void
+  logger: Logger,
+  plugins: Plugin[] = []
+): Promise<BuildContext>
 {
   fs.mkdirSync(config.outputDirAbs, { recursive: true });
   copyAssets(config);
@@ -182,27 +218,46 @@ export function writeFullSite(
   const renderer = new Renderer(config);
   const context: BuildContext = { config, pages, nav };
   for (const page of pages) {
-    writePageHtml(config, page, context, renderer, logger);
+    await writePageHtml(config, page, context, renderer, logger, plugins);
   }
+  return context;
 }
 
 /**
  * 1ページ分のHTMLを出力ファイルへ書き出す
  */
-export function writePageHtml(
+export async function writePageHtml(
   config: ResolvedConfig,
   page: Page,
   context: BuildContext,
   renderer: Renderer,
-  logger: Logger
-): void
+  logger: Logger,
+  plugins: Plugin[] = []
+): Promise<void>
 {
-  const html = renderer.renderPage(page, context);
+  // テンプレートでHTMLを生成し、プラグインで最終加工する
+  let html = renderer.renderPage(page, context);
+  html = await runTransformHtml(plugins, html, page);
   const outFile = path.join(config.outputDirAbs, page.outputPath);
   // ネストした出力パスのため親ディレクトリを先に作る
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   fs.writeFileSync(outFile, html, "utf-8");
   logger.debug(`出力: ${page.outputPath}`);
+}
+
+/**
+ * PageSourceからプラグイン向けPageMetaを作る
+ */
+function toPageMeta(source: PageSource): PageMeta
+{
+  return {
+    sourcePath: source.sourcePath,
+    outputPath: source.outputPath,
+    url: source.url,
+    title: source.title,
+    description: source.description,
+    frontmatter: source.frontmatter
+  };
 }
 
 /**

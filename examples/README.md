@@ -21,3 +21,7 @@ npm run example:build
 - ヘッダーの検索ボックス … 全文検索
 
 `site/` は `.gitignore` 対象のため、確認のたびに `example:build` で再生成する。
+
+## plugins
+
+プラグイン参考実装（Confluenceエクスポート等）。詳細は [plugins/README.md](./plugins/README.md)。
