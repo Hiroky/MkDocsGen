@@ -68,7 +68,7 @@ html[data-theme="light"] {
   --shadow-md: 0 4px 16px rgba(16, 24, 40, 0.08), 0 1px 3px rgba(16, 24, 40, 0.06);
   --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.14), 0 2px 6px rgba(16, 24, 40, 0.08);
   /* Latinは同梱のInter / JetBrains Mono、日本語はシステムデフォルトにフォールバックする */
-  --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  --font-sans: "Inter Variable", -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -76,7 +76,6 @@ html[data-theme="light"] {
   --sidebar-width: 272px;
   --toc-width: 224px;
   --header-height: 60px;
-  --content-max: 48rem;
   --layout-max: 96rem;
   /* 全幅の帯（ヘッダー/ページ送り/フッター）の中身をレイアウト幅に揃えるための左右パディング。 */
   /* ビューポートがレイアウト上限より広いときは余白分を加算して中央のコンテナ幅に合わせる */
@@ -214,10 +213,10 @@ a:hover {
 .site-title {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.7rem;
   font-weight: 700;
-  font-size: 1rem;
-  letter-spacing: -0.01em;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
   color: var(--color-text);
   text-decoration: none;
   white-space: nowrap;
@@ -231,9 +230,9 @@ a:hover {
 .site-title::before {
   content: "";
   flex: 0 0 auto;
-  width: 1.15rem;
-  height: 1.15rem;
-  border-radius: 5px;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 6px;
   background: linear-gradient(135deg, #34d399 0%, #0d9488 55%, #047857 100%);
   box-shadow: 0 1px 4px rgba(4, 120, 87, 0.45);
 }
@@ -281,22 +280,20 @@ a:hover {
   transform: translateY(3.5px);
 }
 
-/* テーマ切替: ピル型のゴーストボタン */
+/* テーマ切替: 検索左に置くアイコンボタン（light/dark/auto を循環） */
 .theme-toggle {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  justify-content: center;
+  width: 2.1rem;
   height: 2.1rem;
+  padding: 0;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-text-muted);
-  padding: 0 0.85rem;
   cursor: pointer;
-  font-family: var(--font-sans);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
   transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
@@ -304,6 +301,34 @@ a:hover {
   color: var(--color-text);
   border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
   background: var(--color-surface);
+}
+
+/* モード別アイコン（maskでcurrentColorに追従） */
+.theme-toggle-icon {
+  display: block;
+  width: 1.1rem;
+  height: 1.1rem;
+  background: currentColor;
+  -webkit-mask: center / contain no-repeat;
+  mask: center / contain no-repeat;
+}
+
+/* light: 太陽 */
+.theme-toggle[data-mode="light"] .theme-toggle-icon {
+  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>');
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>');
+}
+
+/* dark: 月 */
+.theme-toggle[data-mode="dark"] .theme-toggle-icon {
+  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/></svg>');
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/></svg>');
+}
+
+/* auto: 半円（システム追従） */
+.theme-toggle[data-mode="auto"] .theme-toggle-icon {
+  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" stroke-width="2"/><path d="M12 3a9 9 0 0 0 0 18z" fill="black" stroke="none"/></svg>');
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" stroke-width="2"/><path d="M12 3a9 9 0 0 0 0 18z" fill="black" stroke="none"/></svg>');
 }
 
 /* ---------------------------------------------------------------- */
@@ -458,9 +483,8 @@ a:hover {
 
 .content {
   flex: 1;
-  max-width: var(--content-max);
+  /* メインカラム幅いっぱいに使い、内側で再度細く中央寄せしない */
   width: 100%;
-  margin: 0 auto;
   padding: 2.5rem 2rem 4rem;
 }
 
@@ -548,6 +572,15 @@ a:hover {
   color: var(--color-text);
   font-weight: 700;
   font-size: 0.82rem;
+}
+
+/* リンクを持たないセクション見出しは行クリックで開閉するためポインタを示す */
+.nav-section-row:not(:has(.nav-link)) .nav-label {
+  cursor: pointer;
+}
+
+.nav-section-row:not(:has(.nav-link)):hover .nav-label {
+  color: var(--color-accent);
 }
 
 .nav-link:hover {
@@ -763,25 +796,27 @@ a:hover {
   border-color: var(--color-accent);
 }
 
-/* Shiki dual theme: data-themeに応じてCSS変数を切り替える */
+/* Shiki dual theme: 文字色はテーマ変数、背景はライトのみサイト code-bg に統一する */
+/* （github-light の --shiki-light-bg は #fff でページ背景と同色になり区別がつかないため使わない） */
 .page-body .shiki,
 .page-body .shiki span {
   color: var(--shiki-light);
-  background-color: var(--shiki-light-bg, transparent);
+  background-color: transparent;
 }
 
 html[data-theme="dark"] .page-body .shiki,
 html[data-theme="dark"] .page-body .shiki span {
   color: var(--shiki-dark);
-  background-color: var(--shiki-dark-bg, transparent);
-}
-
-html[data-theme="dark"] .page-body .shiki {
-  background-color: var(--shiki-dark-bg, var(--color-code-bg));
+  background-color: transparent;
 }
 
 .page-body .shiki {
-  background-color: var(--shiki-light-bg, var(--color-code-bg));
+  background-color: var(--color-code-bg);
+}
+
+/* ダークは従来どおり Shiki の背景色を維持する */
+html[data-theme="dark"] .page-body .shiki {
+  background-color: var(--shiki-dark-bg, var(--color-code-bg));
 }
 
 /* Mermaid図の余白 */
@@ -796,22 +831,29 @@ html[data-theme="dark"] .page-body .shiki {
 /* Admonition（注記ブロック）: 種類ごとの色でうっすら着色したカード       */
 /* ---------------------------------------------------------------- */
 
+/* ---------------------------------------------------------------- */
+/* Admonition                                                        */
+/* ---------------------------------------------------------------- */
+
 .admonition {
   --admonition-color: #64748b;
-  margin: 1.5rem 0;
-  padding: 0.9rem 1.15rem 1rem;
+  margin: 1.25rem 0;
+  /* 上下の内側余白を揃え、タイトルが上に張り付かないようにする */
+  padding: 0.85rem 1rem;
   border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--admonition-color) 28%, transparent);
   background: color-mix(in srgb, var(--admonition-color) 7%, var(--color-bg));
 }
 
-.admonition-title {
+/* タイトルは <p> なので .page-body p の margin:1rem 0 に負けないよう詳細度を上げる */
+.page-body .admonition-title {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  margin: 0 0 0.45rem;
+  margin: 0 0 0.35rem;
   font-weight: 700;
   font-size: 0.92rem;
+  line-height: 1.3;
 }
 
 /* タイトル前の小さなインジケータドット */
@@ -824,11 +866,12 @@ html[data-theme="dark"] .page-body .shiki {
   background: var(--admonition-color);
 }
 
-.admonition-body > *:first-child {
+/* 本文側も段落マージンが箱の内側で膨らまないよう打ち消す */
+.page-body .admonition-body > *:first-child {
   margin-top: 0;
 }
 
-.admonition-body > *:last-child {
+.page-body .admonition-body > *:last-child {
   margin-bottom: 0;
 }
 
@@ -917,11 +960,6 @@ html[data-theme="dark"] .admonition-danger .admonition-title {
   font-weight: 600;
   font-size: 0.82rem;
   letter-spacing: 0.01em;
-}
-
-/* ゼブラストライプで行を追いやすくする */
-.page-body tbody tr:nth-child(even) {
-  background: color-mix(in srgb, var(--color-surface) 55%, transparent);
 }
 
 .page-body blockquote {
@@ -1107,7 +1145,13 @@ html[data-theme="dark"] .admonition-danger .admonition-title {
   border-top: 1px solid var(--color-border);
   background: var(--color-code-bg);
   color: var(--color-text-muted);
-  font-size: 0.78rem;
+  font-size: 0.925rem;
+}
+
+/* ダークだけフッター帯を明るくし、文字も白寄りにしてコントラストを上げる（ライトは現状維持） */
+html[data-theme="dark"] .site-footer {
+  background: var(--color-surface);
+  color: #b1b6be;
 }
 
 .footer-inner {

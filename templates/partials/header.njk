@@ -4,9 +4,9 @@
   </button>
   <a class="site-title" href="{{ root }}index.html">{{ site.title }}</a>
   <div class="header-actions">
-    {% include "partials/search.njk" %}
-    <button type="button" class="theme-toggle" data-theme-toggle aria-label="テーマを切り替える">
-      <span class="theme-toggle-label" data-theme-label>auto</span>
+    <button type="button" class="theme-toggle" data-theme-toggle data-mode="auto" aria-label="テーマを切り替える（現在: auto）">
+      <span class="theme-toggle-icon" aria-hidden="true"></span>
     </button>
+    {% include "partials/search.njk" %}
   </div>
 </header>

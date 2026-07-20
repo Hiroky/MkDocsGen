@@ -53,6 +53,36 @@ describe("theme a11y markup", () => {
     expect(mainJs).toMatch(/Escape[\s\S]*stopPropagation/);
   });
 
+  it("main.jsがリンクなしセクション見出しクリックで展開する", () => {
+    // 親にurlが無い場合、見出し選択でも子階層を開閉できること
+    const mainJs = fs.readFileSync(path.join(ASSETS_DIR, "main.js"), "utf-8");
+    expect(mainJs).toContain("initSidebarToggles");
+    // トグルボタン以外に、リンク無し行（.nav-label）からの展開処理があること
+    expect(mainJs).toMatch(/\.nav-label[\s\S]*aria-expanded|aria-expanded[\s\S]*\.nav-label/);
+    expect(mainJs).toMatch(/nav-section-row[\s\S]*\.nav-link|querySelector\("\.nav-link"\)/);
+  });
+
+  it("テーマ切替はアイコンボタンで検索の左に置かれる", () => {
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    const page = createTestPage({ contentHtml: "<p>Body</p>" });
+    const renderer = new Renderer(fixture.config);
+    const html = renderer.renderPage(page, createTestContext(fixture.config, [page], []));
+
+    // テーマトグルが検索より前にあり、テキストではなくアイコンを持つこと
+    const actionsMatch = html.match(/class="header-actions"([\s\S]*?)<\/div>\s*<\/header>/);
+    expect(actionsMatch).not.toBeNull();
+    const actionsHtml = actionsMatch?.[1] ?? "";
+    expect(actionsHtml.indexOf("theme-toggle")).toBeGreaterThanOrEqual(0);
+    expect(actionsHtml.indexOf("theme-toggle")).toBeLessThan(actionsHtml.indexOf("data-search"));
+    expect(actionsHtml).toContain("theme-toggle-icon");
+    expect(actionsHtml).not.toMatch(/theme-toggle-label/);
+
+    // JS側でモードをdata属性へ反映し、CSSでアイコン切替できること
+    const mainJs = fs.readFileSync(path.join(ASSETS_DIR, "main.js"), "utf-8");
+    expect(mainJs).toMatch(/dataset\.mode\s*=\s*mode|setAttribute\("data-mode"/);
+  });
+
   it("main.cssがインタラクティブ要素の:focus-visibleを定義する", () => {
     const css = fs.readFileSync(path.join(ASSETS_DIR, "main.css"), "utf-8");
     expect(css).toContain(":focus-visible");

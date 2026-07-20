@@ -41,15 +41,17 @@
   }
 
   /**
-   * data属性とラベルを更新してテーマを反映する
+   * data属性とボタン表示を更新してテーマを反映する
    */
   function applyTheme(mode) {
     const resolved = resolveTheme(mode);
     document.documentElement.dataset.theme = resolved;
     document.documentElement.dataset.themeMode = mode;
-    const label = document.querySelector("[data-theme-label]");
-    if (label) {
-      label.textContent = mode;
+    const button = document.querySelector("[data-theme-toggle]");
+    if (button) {
+      // CSSがモード別アイコンを出せるよう data-mode を同期する
+      button.dataset.mode = mode;
+      button.setAttribute("aria-label", `テーマを切り替える（現在: ${mode}）`);
     }
     // Mermaid図もライト/ダークに合わせて再描画する
     renderMermaid(resolved);
@@ -170,15 +172,43 @@
    * サイドバーのセクション展開/折りたたみを初期化する
    */
   function initSidebarToggles() {
+    /**
+     * 指定トグルの展開状態を反映する
+     */
+    function setNavExpanded(button, next) {
+      button.setAttribute("aria-expanded", String(next));
+      const children = button.closest(".nav-item")?.querySelector(":scope > [data-nav-children]");
+      if (children) {
+        children.hidden = !next;
+      }
+    }
+
     document.querySelectorAll("[data-nav-toggle]").forEach((button) => {
       button.addEventListener("click", () => {
         const expanded = button.getAttribute("aria-expanded") === "true";
-        const next = !expanded;
-        button.setAttribute("aria-expanded", String(next));
-        const children = button.closest(".nav-item")?.querySelector("[data-nav-children]");
-        if (children) {
-          children.hidden = !next;
+        setNavExpanded(button, !expanded);
+      });
+    });
+
+    // リンクを持たないセクション見出しは、行クリックでも展開/折りたたみする
+    document.querySelectorAll(".nav-section-row").forEach((row) => {
+      // 親自体にページリンクがある場合は遷移を優先し、ここでは何もしない
+      if (row.querySelector(".nav-link")) {
+        return;
+      }
+      const button = row.querySelector("[data-nav-toggle]");
+      const label = row.querySelector(".nav-label");
+      if (!button || !label) {
+        return;
+      }
+
+      row.addEventListener("click", (event) => {
+        // トグルボタンは専用ハンドラがあるので二重に開閉しない
+        if (event.target.closest("[data-nav-toggle]")) {
+          return;
         }
+        const expanded = button.getAttribute("aria-expanded") === "true";
+        setNavExpanded(button, !expanded);
       });
     });
   }
