@@ -43,6 +43,10 @@ describe("copyAssets", () => {
     expect(css).toContain("@font-face");
     expect(css).toContain("Inter Variable");
     expect(css).toContain("JetBrains Mono Variable");
+    // 後追いのフォールバック差し替えを避け、本フォントを使う（block + preload）
+    expect(css).toContain("font-display: block");
+    expect(css).not.toContain("font-display: swap");
+    expect(css).not.toContain("font-display: optional");
   });
 
   it("mermaid.min.jsをoutput/assetsへコピーする", () => {

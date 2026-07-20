@@ -8,6 +8,9 @@ exports[`runBuild > 主要ページのHTMLスナップショットが一致す�
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Page A - Basic Site</title>
   
+  
+  <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/jetbrains-mono-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/main.css">
   
   
@@ -196,6 +199,9 @@ exports[`runBuild > 主要ページのHTMLスナップショットが一致す�
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Page C - Basic Site</title>
   
+  
+  <link rel="preload" href="../assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="../assets/fonts/jetbrains-mono-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="../assets/main.css">
   
   
@@ -427,6 +433,9 @@ exports[`runBuild > 主要ページのHTMLスナップショットが一致す�
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Home - Basic Site</title>
   
+  
+  <link rel="preload" href="assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/jetbrains-mono-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/main.css">
   
   

@@ -83,6 +83,23 @@ describe("theme a11y markup", () => {
     expect(mainJs).toMatch(/dataset\.mode\s*=\s*mode|setAttribute\("data-mode"/);
   });
 
+  it("主要フォントのpreloadとfont-display:blockでFOUTを抑止する", () => {
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    const page = createTestPage({ contentHtml: "<p>Body</p>" });
+    const renderer = new Renderer(fixture.config);
+    const html = renderer.renderPage(page, createTestContext(fixture.config, [page], []));
+
+    expect(html).toContain('rel="preload"');
+    expect(html).toContain("assets/fonts/inter-latin-wght-normal.woff2");
+    expect(html).toContain("assets/fonts/jetbrains-mono-latin-wght-normal.woff2");
+    expect(html).toMatch(/as="font"[^>]*type="font\/woff2"|type="font\/woff2"[^>]*as="font"/);
+
+    const css = fs.readFileSync(path.join(ASSETS_DIR, "main.css"), "utf-8");
+    expect(css).toContain("font-display: block");
+    expect(css).not.toContain("font-display: optional");
+  });
+
   it("main.cssがインタラクティブ要素の:focus-visibleを定義する", () => {
     const css = fs.readFileSync(path.join(ASSETS_DIR, "main.css"), "utf-8");
     expect(css).toContain(":focus-visible");
