@@ -27,6 +27,24 @@ describe("copyAssets", () => {
     expect(fs.existsSync(path.join(fixture.config.outputDirAbs, "assets", "main.js"))).toBe(true);
   });
 
+  it("同梱フォントをoutput/assets/fontsへコピーしmain.cssが参照する", () => {
+    // Latin用webフォント（Inter / JetBrains Mono）がfile://でも読めるよう同梱されること
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
+
+    copyAssets(fixture.config);
+
+    const fontsDir = path.join(fixture.config.outputDirAbs, "assets", "fonts");
+    expect(fs.existsSync(path.join(fontsDir, "inter-latin-wght-normal.woff2"))).toBe(true);
+    expect(fs.existsSync(path.join(fontsDir, "jetbrains-mono-latin-wght-normal.woff2"))).toBe(true);
+    // main.cssに@font-face宣言とフォント名があること
+    const css = fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.css"), "utf-8");
+    expect(css).toContain("@font-face");
+    expect(css).toContain("Inter Variable");
+    expect(css).toContain("JetBrains Mono Variable");
+  });
+
   it("mermaid.min.jsをoutput/assetsへコピーする", () => {
     // クライアントサイド描画用ランタイムが同梱されること
     const fixture = createRenderFixture();
