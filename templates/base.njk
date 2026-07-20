@@ -38,12 +38,14 @@
       <main id="main-content" class="content">
         {% block content %}{% endblock %}
       </main>
-      {% include "partials/footer.njk" %}
     </div>
     <aside class="toc-sidebar" data-toc-sidebar>
       {% include "partials/toc.njk" %}
     </aside>
   </div>
+  {# ページ送りとフッターはレイアウトの外に置き、ビューポート全幅の帯として表示する #}
+  {% include "partials/prev-next.njk" %}
+  {% include "partials/footer.njk" %}
   <script src="{{ root }}assets/mermaid.min.js" defer></script>
   <script src="{{ root }}assets/main.js" defer></script>
   {% block scripts %}{% endblock %}

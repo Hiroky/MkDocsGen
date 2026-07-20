@@ -56,6 +56,38 @@ describe("Renderer", () => {
     expect(html).not.toContain('href="../assets/main.css"');
   });
 
+  it("ページ送りとフッターは中央カラムの外の全幅リージョンに出る", () => {
+    // main要素を閉じた後に prev-next → footer の順で全幅の帯として並ぶこと
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    const page = createTestPage({
+      prev: { title: "Prev Page", url: "prev.html" },
+      next: { title: "Next Page", url: "next.html" }
+    });
+    const renderer = new Renderer(fixture.config);
+    const html = renderer.renderPage(page, createTestContext(fixture.config, [page]));
+
+    const mainClose = html.indexOf("</main>");
+    const prevNext = html.indexOf('class="prev-next"');
+    const footer = html.indexOf('class="site-footer"');
+    expect(mainClose).toBeGreaterThan(-1);
+    expect(prevNext).toBeGreaterThan(mainClose);
+    expect(footer).toBeGreaterThan(prevNext);
+  });
+
+  it("デフォルトフッターにコピーライト行とMade with行が出る", () => {
+    // Zensical風の2行構成フッター（© サイト名 / Made with MkDocsGen）を確認する
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    const page = createTestPage();
+    const renderer = new Renderer(fixture.config);
+    const html = renderer.renderPage(page, createTestContext(fixture.config, [page]));
+
+    expect(html).toContain('class="footer-inner"');
+    expect(html).toContain("© Test Site");
+    expect(html).toContain("Made with MkDocsGen");
+  });
+
   it("footer.njkのみオーバーライドするとフッターだけ差し替わる", () => {
     // MkDocs方式の部分差し替えが効くことを確認する
     const fixture = createRenderFixture({

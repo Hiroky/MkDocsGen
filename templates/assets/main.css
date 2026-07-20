@@ -34,6 +34,10 @@ html[data-theme="light"] {
   --toc-width: 224px;
   --header-height: 60px;
   --content-max: 48rem;
+  --layout-max: 96rem;
+  /* 全幅の帯（ヘッダー/ページ送り/フッター）の中身をレイアウト幅に揃えるための左右パディング。 */
+  /* ビューポートがレイアウト上限より広いときは余白分を加算して中央のコンテナ幅に合わせる */
+  --band-padding: max(1.25rem, calc((100% - var(--layout-max)) / 2 + 1.25rem));
 }
 
 html[data-theme="dark"] {
@@ -72,6 +76,10 @@ html {
 
 body {
   margin: 0;
+  /* ページ送り・フッターの全幅帯を最下部へ押し下げるため縦flexにする */
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   font-family: var(--font-sans);
   color: var(--color-text);
   background: var(--color-bg);
@@ -153,7 +161,7 @@ a:hover {
   align-items: center;
   gap: 1rem;
   height: var(--header-height);
-  padding: 0 1.25rem;
+  padding: 0 var(--band-padding);
   background: color-mix(in srgb, var(--color-header-bg) 80%, transparent);
   -webkit-backdrop-filter: blur(12px) saturate(1.4);
   backdrop-filter: blur(12px) saturate(1.4);
@@ -377,9 +385,11 @@ a:hover {
 .layout {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--toc-width);
-  max-width: 96rem;
+  max-width: var(--layout-max);
+  width: 100%;
   margin: 0 auto;
-  min-height: calc(100vh - var(--header-height));
+  /* bodyの縦flex内で余白を吸収し、フッター帯を最下部に固定する */
+  flex: 1;
 }
 
 .sidebar {
@@ -893,45 +903,75 @@ html[data-theme="dark"] .admonition-danger .admonition-title {
 }
 
 /* ---------------------------------------------------------------- */
-/* Prev / Next: ホバーで浮き上がるカード                               */
+/* Prev / Next: 丸枠の矢印ボタン+2段テキストを左右に配した水平バー      */
 /* ---------------------------------------------------------------- */
 
 .prev-next {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-top: 3.5rem;
-  padding-top: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  /* 帯自体は全幅、中身はレイアウト幅（中央のコンテナ）に揃える */
+  width: 100%;
+  padding: 1rem var(--band-padding);
   border-top: 1px solid var(--color-border);
 }
 
+/* 矢印アイコン用のセルとラベル/タイトルの2行をグリッドで組む */
 .prev-next-link {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.95rem 1.15rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: transparent;
+  display: grid;
+  column-gap: 0.9rem;
+  align-items: center;
+  min-width: 0;
   color: var(--color-text);
   text-decoration: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .prev-next-link:hover {
-  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
-  box-shadow: var(--shadow-sm);
-  transform: translateY(-1px);
   text-decoration: none;
+}
+
+.prev-next-link--prev {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "icon label" "icon title";
+}
+
+.prev-next-link--next {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "label icon" "title icon";
+  text-align: right;
+}
+
+/* 矢印アイコンはmaskで描画し、テキスト色に追従させる */
+.prev-next-link::after {
+  content: "";
+  grid-area: icon;
+  place-self: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  background: var(--color-text-muted);
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>') center / contain no-repeat;
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>') center / contain no-repeat;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+/* 次ページ側は左矢印を180度回して右向きにする */
+.prev-next-link--next::after {
+  transform: rotate(180deg);
+}
+
+/* ホバーで矢印が進行方向へわずかにスライドする */
+.prev-next-link:hover::after {
+  background: var(--color-accent);
+  transform: translateX(-3px);
+}
+
+.prev-next-link--next:hover::after {
+  transform: rotate(180deg) translateX(-3px);
 }
 
 .prev-next-link:hover .prev-next-title {
   color: var(--color-accent);
-}
-
-.prev-next-link--next {
-  text-align: right;
-  justify-self: stretch;
 }
 
 .prev-next-link--empty {
@@ -940,16 +980,18 @@ html[data-theme="dark"] .admonition-danger .admonition-title {
 }
 
 .prev-next-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  grid-area: label;
+  font-size: 0.75rem;
   color: var(--color-text-muted);
 }
 
 .prev-next-title {
+  grid-area: title;
   font-weight: 600;
   font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transition: color 0.15s ease;
 }
 
@@ -1012,21 +1054,28 @@ html[data-theme="dark"] .admonition-danger .admonition-title {
 }
 
 /* ---------------------------------------------------------------- */
-/* フッター                                                          */
+/* フッター: コピーライト+Made with の2行を載せた帯                    */
 /* ---------------------------------------------------------------- */
 
 .site-footer {
-  margin-top: auto;
-  padding: 1.5rem 2rem;
+  /* 帯自体は全幅、中身はレイアウト幅（中央のコンテナ）に揃える */
+  width: 100%;
+  padding: 1.4rem var(--band-padding);
   border-top: 1px solid var(--color-border);
+  background: var(--color-code-bg);
   color: var(--color-text-muted);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
 }
 
-.footer-text {
+.footer-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.footer-text,
+.footer-meta {
   margin: 0;
-  max-width: var(--content-max);
-  margin-inline: auto;
 }
 
 /* ---------------------------------------------------------------- */
@@ -1128,12 +1177,13 @@ html[data-theme="dark"] .admonition-danger .admonition-title {
     font-size: 1.75rem;
   }
 
+  /* モバイルでも水平バーを維持し、長いタイトルは省略記号で切り詰める */
   .prev-next {
-    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 0.85rem var(--band-padding);
   }
 
-  .prev-next-link--next {
-    justify-self: stretch;
-    text-align: left;
+  .site-footer {
+    padding: 1.25rem var(--band-padding);
   }
 }
