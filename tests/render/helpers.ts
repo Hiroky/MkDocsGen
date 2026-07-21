@@ -13,6 +13,7 @@ export function createRenderFixture(options: {
   defaultMode?: "auto" | "light" | "dark";
   logo?: string;
   favicon?: string;
+  copyright?: string;
 } = {}): { root: string; config: ResolvedConfig; cleanup: () => void }
 {
   // OSの一時領域にユニークな作業ディレクトリを作る
@@ -28,7 +29,12 @@ export function createRenderFixture(options: {
   }
 
   const config: ResolvedConfig = {
-    site: { title: "Test Site", description: "desc", base_url: "/" },
+    site: {
+      title: "Test Site",
+      description: "desc",
+      base_url: "/",
+      ...(options.copyright !== undefined ? { copyright: options.copyright } : {})
+    },
     docs_dir: "docs",
     output_dir: "site",
     nav: [],

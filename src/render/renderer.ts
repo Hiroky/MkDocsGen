@@ -52,7 +52,9 @@ export class Renderer
       site: {
         title: this.config.site.title,
         description: this.config.site.description,
-        baseUrl: this.config.site.base_url
+        baseUrl: this.config.site.base_url,
+        // 未設定時はテンプレート側で「© {title}」にフォールバックする
+        copyright: this.config.site.copyright ?? null
       },
       page,
       nav: context.nav,

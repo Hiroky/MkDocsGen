@@ -45,7 +45,9 @@ export const rawConfigSchema = z.object({
     // 唯一の必須項目。サイト名としてヘッダーやtitleに使う
     title: z.string(),
     description: z.string().default(""),
-    base_url: z.string().default("/")
+    base_url: z.string().default("/"),
+    // フッターのコピーライト文言。未指定時は「© {title}」を使う
+    copyright: z.string().optional()
   }).strict(),
   docs_dir: z.string().default("docs"),
   output_dir: z.string().default("site"),

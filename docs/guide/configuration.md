@@ -16,7 +16,7 @@ site:
 
 | キー | 説明 |
 | --- | --- |
-| `site.title` / `description` / `base_url` | サイト名・説明・公開ベースURL |
+| `site.title` / `description` / `base_url` / `copyright` | サイト名・説明・公開ベースURL・フッターのコピーライト |
 | `docs_dir` / `output_dir` | 入力・出力ディレクトリ（既定: `docs` / `site`） |
 | `nav` | ナビの明示順（省略時はディレクトリから自動構築） |
 | `exclude` | glob 形式の除外パターン |

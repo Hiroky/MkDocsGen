@@ -10,6 +10,7 @@ site:
   title: My Documentation
   description: ""
   base_url: /
+  # copyright: "© 2026 Example Inc."
 
 docs_dir: docs
 output_dir: site

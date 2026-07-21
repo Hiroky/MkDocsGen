@@ -16,6 +16,7 @@ describe("rawConfigSchema", () => {
     expect(result.data.site.title).toBe("My Docs");
     expect(result.data.site.description).toBe("");
     expect(result.data.site.base_url).toBe("/");
+    expect(result.data.site.copyright).toBeUndefined();
     expect(result.data.docs_dir).toBe("docs");
     expect(result.data.output_dir).toBe("site");
     expect(result.data.nav).toEqual([]);
@@ -30,6 +31,20 @@ describe("rawConfigSchema", () => {
     expect(result.data.pydoc.source_dirs).toEqual([]);
     expect(result.data.plugins).toEqual([]);
     expect(result.data.serve.port).toBe(3000);
+  });
+
+  it("site.copyright を任意で受け付ける", () => {
+    // フッター文言は任意項目として検証を通す
+    const result = rawConfigSchema.safeParse({
+      site: { title: "My Docs", copyright: "© 2026 Example Inc." }
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      return;
+    }
+
+    expect(result.data.site.copyright).toBe("© 2026 Example Inc.");
   });
 
   it("site.title欠落はスキーマエラーになる", () => {

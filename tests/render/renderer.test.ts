@@ -88,6 +88,19 @@ describe("Renderer", () => {
     expect(html).toContain("Made with MkDocsGen");
   });
 
+  it("site.copyrightを設定するとフッター文言が差し替わる", () => {
+    // 専用設定があれば © title フォールバックではなくその文言をそのまま出す
+    const fixture = createRenderFixture({ copyright: "© 2026 Example Inc." });
+    cleanups.push(fixture.cleanup);
+    const page = createTestPage();
+    const renderer = new Renderer(fixture.config);
+    const html = renderer.renderPage(page, createTestContext(fixture.config, [page]));
+
+    expect(html).toContain("© 2026 Example Inc.");
+    expect(html).not.toContain("© Test Site");
+    expect(html).toContain("Made with MkDocsGen");
+  });
+
   it("footer.njkのみオーバーライドするとフッターだけ差し替わる", () => {
     // MkDocs方式の部分差し替えが効くことを確認する
     const fixture = createRenderFixture({

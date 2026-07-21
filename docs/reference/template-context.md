@@ -26,6 +26,7 @@ Nunjucksテンプレート（組み込みテーマ / `theme_overrides/`）に渡
 | `title` | `string` | サイトタイトル（`site.title`） |
 | `description` | `string` | サイト説明（`site.description`） |
 | `baseUrl` | `string` | 公開ベースURL（`site.base_url`） |
+| `copyright` | `string \| null` | フッターのコピーライト文言（未設定時は `null`。テンプレート側で `© {title}` にフォールバック） |
 
 ## `page`
 

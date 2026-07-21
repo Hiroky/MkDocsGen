@@ -1,6 +1,6 @@
 <footer class="site-footer">
   <div class="footer-inner">
-    <p class="footer-text">© {{ site.title }}</p>
+    <p class="footer-text">{% if site.copyright %}{{ site.copyright }}{% else %}© {{ site.title }}{% endif %}</p>
     <p class="footer-meta">Made with MkDocsGen</p>
   </div>
 </footer>

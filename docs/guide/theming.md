@@ -44,6 +44,16 @@ theme:
 - `favicon` は各ページの `<head>` に `<link rel="icon">` として埋め込まれます
 - SVG の favicon には自動で `type="image/svg+xml"` が付きます
 
+## コピーライト
+
+```yaml
+site:
+  title: My Docs
+  copyright: "© 2026 Example Inc."
+```
+
+未指定時はフッターに `© {site.title}` が出ます。指定時はその文字列がそのまま使われます。
+
 ## 初期テーマモード
 
 ```yaml

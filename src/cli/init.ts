@@ -71,6 +71,7 @@ site:
   title: My Documentation        # 必須。サイト名（ヘッダー・<title>に使用）
   description: ""                # 任意。デフォルトのmeta description
   base_url: /                    # 任意。サブパス配信時のベースURL（デフォルト: /）
+  # copyright: "© 2026 Example Inc."  # 任意。フッター文言（未指定時は「© {title}」）
 
 # 入出力ディレクトリ
 docs_dir: docs                   # 任意。Markdownソース（デフォルト: docs）
