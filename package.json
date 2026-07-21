@@ -10,6 +10,11 @@
   "bin": {
     "mkdocsgen": "./dist/cli/index.js"
   },
+  "files": [
+    "dist",
+    "templates",
+    "README.md"
+  ],
   "scripts": {
     "dev": "tsx src/cli/index.ts",
     "build": "tsc -p tsconfig.json",
