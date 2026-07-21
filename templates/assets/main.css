@@ -228,7 +228,7 @@ a:hover {
   text-decoration: none;
 }
 
-/* サイト名の前に置くグラデーションのロゴマーク */
+/* サイト名の前に置くグラデーションのロゴマーク（theme.logo未指定時の既定） */
 .site-title::before {
   content: "";
   flex: 0 0 auto;
@@ -237,6 +237,19 @@ a:hover {
   border-radius: 6px;
   background: linear-gradient(135deg, #34d399 0%, #0d9488 55%, #047857 100%);
   box-shadow: 0 1px 4px rgba(4, 120, 87, 0.45);
+}
+
+/* theme.logo指定時はCSSマークを隠し、実画像を使う */
+.site-title:has(.site-logo)::before {
+  display: none;
+}
+
+.site-logo {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  object-fit: contain;
+  border-radius: 4px;
 }
 
 .header-actions {

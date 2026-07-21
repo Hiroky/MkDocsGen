@@ -23,6 +23,8 @@ describe("rawConfigSchema", () => {
     expect(result.data.theme.overrides_dir).toBe("theme_overrides");
     expect(result.data.theme.default_mode).toBe("auto");
     expect(result.data.theme.custom_css).toEqual([]);
+    expect(result.data.theme.logo).toBeUndefined();
+    expect(result.data.theme.favicon).toBeUndefined();
     expect(result.data.markdown.allow_html).toBe(true);
     expect(result.data.markdown.breaks).toBe(true);
     expect(result.data.pydoc.source_dirs).toEqual([]);
@@ -60,6 +62,25 @@ describe("rawConfigSchema", () => {
 
     const messages = result.error.issues.map((issue) => issue.message).join("\n");
     expect(messages).toContain("sitee");
+  });
+
+  it("theme.logo / theme.favicon を任意で受け付ける", () => {
+    // ブランディング画像パスは任意項目として検証を通す
+    const result = rawConfigSchema.safeParse({
+      site: { title: "My Docs" },
+      theme: {
+        logo: "brand/logo.svg",
+        favicon: "brand/favicon.ico"
+      }
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      return;
+    }
+
+    expect(result.data.theme.logo).toBe("brand/logo.svg");
+    expect(result.data.theme.favicon).toBe("brand/favicon.ico");
   });
 
   it("pydoc / plugins / serve を書いても検証を通す", () => {

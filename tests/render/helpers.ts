@@ -11,6 +11,8 @@ export function createRenderFixture(options: {
   overrides?: Record<string, string>;
   customCss?: string[];
   defaultMode?: "auto" | "light" | "dark";
+  logo?: string;
+  favicon?: string;
 } = {}): { root: string; config: ResolvedConfig; cleanup: () => void }
 {
   // OSの一時領域にユニークな作業ディレクトリを作る
@@ -34,7 +36,9 @@ export function createRenderFixture(options: {
     theme: {
       overrides_dir: "theme_overrides",
       default_mode: options.defaultMode ?? "auto",
-      custom_css: options.customCss ?? []
+      custom_css: options.customCss ?? [],
+      ...(options.logo !== undefined ? { logo: options.logo } : {}),
+      ...(options.favicon !== undefined ? { favicon: options.favicon } : {})
     },
     markdown: { allow_html: true, breaks: true },
     pydoc: { source_dirs: [] },

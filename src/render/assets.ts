@@ -8,10 +8,29 @@ import type { ResolvedConfig } from "../config/schema.js";
 // ESMからnode_modules内のmermaidパスを解決するためのrequire
 const require = createRequire(import.meta.url);
 
+/** copyAssetsの戻り値。テンプレートへ渡す出力相対パスをまとめる */
+export interface CopiedAssets {
+  customCss: string[];
+  logo: string | null;
+  favicon: string | null;
+}
+
 /**
- * テーマアセットとcustom_cssを出力ディレクトリへコピーする
+ * theme.logo / theme.favicon の出力相対パスを求める（未設定ならnull）
  */
-export function copyAssets(config: ResolvedConfig): string[]
+export function resolveBrandAssetPath(relPath: string | undefined): string | null
+{
+  // 未指定ならテンプレート側でデフォルト表示に任せる
+  if (!relPath) {
+    return null;
+  }
+  return `assets/brand/${path.basename(relPath)}`;
+}
+
+/**
+ * テーマアセットとcustom_css / logo / faviconを出力ディレクトリへコピーする
+ */
+export function copyAssets(config: ResolvedConfig): CopiedAssets
 {
   // 組み込みテーマのassetsディレクトリを解決する（src/distどちらからでも2階層上がリポジトリルート）
   const builtinAssetsDir = fileURLToPath(new URL("../../templates/assets", import.meta.url));
@@ -28,6 +47,23 @@ export function copyAssets(config: ResolvedConfig): string[]
   copyMinisearchRuntime(outputAssetsDir);
 
   // theme.custom_cssの各ファイルを outputDirAbs/assets/custom/ へコピーする
+  const customCss = copyCustomCss(config, outputAssetsDir);
+
+  // theme.logo / theme.favicon を assets/brand/ へコピーする
+  const brand = copyBrandAssets(config, outputAssetsDir);
+
+  return {
+    customCss,
+    logo: brand.logo,
+    favicon: brand.favicon
+  };
+}
+
+/**
+ * custom_cssをassets/customへコピーし、出力相対パス一覧を返す
+ */
+function copyCustomCss(config: ResolvedConfig, outputAssetsDir: string): string[]
+{
   const customOutputDir = path.join(outputAssetsDir, "custom");
   const injected: string[] = [];
   const usedNames = new Set<string>();
@@ -48,8 +84,47 @@ export function copyAssets(config: ResolvedConfig): string[]
     // テンプレートへ注入する出力相対パス（POSIX区切り）を集める
     injected.push(`assets/custom/${fileName}`);
   }
-
   return injected;
+}
+
+/**
+ * logo / faviconをassets/brandへコピーし、出力相対パスを返す
+ */
+function copyBrandAssets(
+  config: ResolvedConfig,
+  outputAssetsDir: string
+): { logo: string | null; favicon: string | null }
+{
+  const brandDir = path.join(outputAssetsDir, "brand");
+  const usedNames = new Set<string>();
+
+  /**
+   * 1ファイルをbrandへコピーし、出力相対パスを返す
+   */
+  const copyOne = (label: "logo" | "favicon", relPath: string | undefined): string | null => {
+    // 未設定なら何もしない
+    if (!relPath) {
+      return null;
+    }
+    const absPath = path.resolve(config.configDir, relPath);
+    if (!fs.existsSync(absPath)) {
+      throw new ConfigError(`${label} が見つかりません: ${relPath}`);
+    }
+    const fileName = path.basename(absPath);
+    // logoとfaviconが同名だと上書きになるため、衝突を明示エラーにする
+    if (usedNames.has(fileName)) {
+      throw new ConfigError(`${label} のファイル名が重複しています: ${fileName}`);
+    }
+    usedNames.add(fileName);
+    fs.mkdirSync(brandDir, { recursive: true });
+    fs.copyFileSync(absPath, path.join(brandDir, fileName));
+    return resolveBrandAssetPath(relPath);
+  };
+
+  return {
+    logo: copyOne("logo", config.theme.logo),
+    favicon: copyOne("favicon", config.theme.favicon)
+  };
 }
 
 /**

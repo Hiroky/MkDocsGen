@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ page.title }} - {{ site.title }}{% endblock %}</title>
   {% if page.description %}<meta name="description" content="{{ page.description }}">{% endif %}
+  {%- if favicon %}
+  <link rel="icon" href="{{ root }}{{ favicon }}"{% if faviconType %} type="{{ faviconType }}"{% endif %}>
+  {%- endif %}
   {# 主要Latinフォントを先行取得し、描画前に読み込んでフォールバック差し替えを避ける #}
   <link rel="preload" href="{{ root }}assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{{ root }}assets/fonts/jetbrains-mono-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>

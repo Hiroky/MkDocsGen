@@ -25,6 +25,8 @@ theme:
   overrides_dir: theme_overrides
   default_mode: auto
   custom_css: []
+  # logo: brand/logo.svg
+  # favicon: brand/favicon.ico
 
 markdown:
   allow_html: true

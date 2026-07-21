@@ -20,7 +20,7 @@ site:
 | `docs_dir` / `output_dir` | 入力・出力ディレクトリ（既定: `docs` / `site`） |
 | `nav` | ナビの明示順（省略時はディレクトリから自動構築） |
 | `exclude` | glob 形式の除外パターン |
-| `theme` | オーバーライドDIR・初期テーマ・追加CSS |
+| `theme` | オーバーライドDIR・初期テーマ・追加CSS・logo / favicon |
 | `markdown.allow_html` | 生HTMLの許可（既定: `true`） |
 | `markdown.breaks` | 段落内の通常改行を `<br>` にする（既定: `true`） |
 | `pydoc.source_dirs` | `::: pydoc` のモジュール探索パス |

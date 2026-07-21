@@ -20,9 +20,11 @@ describe("copyAssets", () => {
     cleanups.push(fixture.cleanup);
     fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
 
-    const customCss = copyAssets(fixture.config);
+    const copied = copyAssets(fixture.config);
 
-    expect(customCss).toEqual([]);
+    expect(copied.customCss).toEqual([]);
+    expect(copied.logo).toBeNull();
+    expect(copied.favicon).toBeNull();
     expect(fs.existsSync(path.join(fixture.config.outputDirAbs, "assets", "main.css"))).toBe(true);
     expect(fs.existsSync(path.join(fixture.config.outputDirAbs, "assets", "main.js"))).toBe(true);
   });
@@ -84,10 +86,65 @@ describe("copyAssets", () => {
     fixture.config.theme.custom_css = ["brand.css"];
     fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
 
-    const customCss = copyAssets(fixture.config);
+    const copied = copyAssets(fixture.config);
 
-    expect(customCss).toEqual(["assets/custom/brand.css"]);
+    expect(copied.customCss).toEqual(["assets/custom/brand.css"]);
     expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "custom", "brand.css"), "utf-8")).toBe("body { color: red; }");
+  });
+
+  it("logo / faviconをassets/brandへコピーし相対パスを返す", () => {
+    // ブランディング画像の注入経路を確認する
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    fs.mkdirSync(path.join(fixture.root, "brand"), { recursive: true });
+    fs.writeFileSync(path.join(fixture.root, "brand", "logo.svg"), "<svg></svg>", "utf-8");
+    fs.writeFileSync(path.join(fixture.root, "brand", "favicon.ico"), "ICO", "utf-8");
+    fixture.config.theme.logo = "brand/logo.svg";
+    fixture.config.theme.favicon = "brand/favicon.ico";
+    fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
+
+    const copied = copyAssets(fixture.config);
+
+    expect(copied.logo).toBe("assets/brand/logo.svg");
+    expect(copied.favicon).toBe("assets/brand/favicon.ico");
+    expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "brand", "logo.svg"), "utf-8")).toBe("<svg></svg>");
+    expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "brand", "favicon.ico"), "utf-8")).toBe("ICO");
+  });
+
+  it("存在しないlogoはConfigErrorにする", () => {
+    // 誤ったパスを早期に検出する
+    const fixture = createRenderFixture({ logo: "missing-logo.svg" });
+    cleanups.push(fixture.cleanup);
+    fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
+
+    expect(() => copyAssets(fixture.config)).toThrow(ConfigError);
+    expect(() => copyAssets(fixture.config)).toThrow(/missing-logo\.svg/);
+  });
+
+  it("存在しないfaviconはConfigErrorにする", () => {
+    // 誤ったパスを早期に検出する
+    const fixture = createRenderFixture({ favicon: "missing-favicon.ico" });
+    cleanups.push(fixture.cleanup);
+    fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
+
+    expect(() => copyAssets(fixture.config)).toThrow(ConfigError);
+    expect(() => copyAssets(fixture.config)).toThrow(/missing-favicon\.ico/);
+  });
+
+  it("logoとfaviconの同名basenameはConfigErrorにする", () => {
+    // assets/brand配下での上書き衝突を明示的に失敗させる
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    fs.mkdirSync(path.join(fixture.root, "a"), { recursive: true });
+    fs.mkdirSync(path.join(fixture.root, "b"), { recursive: true });
+    fs.writeFileSync(path.join(fixture.root, "a", "icon.png"), "a", "utf-8");
+    fs.writeFileSync(path.join(fixture.root, "b", "icon.png"), "b", "utf-8");
+    fixture.config.theme.logo = "a/icon.png";
+    fixture.config.theme.favicon = "b/icon.png";
+    fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
+
+    expect(() => copyAssets(fixture.config)).toThrow(ConfigError);
+    expect(() => copyAssets(fixture.config)).toThrow(/basename|同名|重複/);
   });
 
   it("存在しないcustom_cssはConfigErrorにする", () => {

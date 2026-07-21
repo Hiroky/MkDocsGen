@@ -85,6 +85,8 @@ theme:
   overrides_dir: theme_overrides # 任意。テンプレートオーバーライド用ディレクトリ
   default_mode: auto             # 任意。auto | light | dark（デフォルト: auto）
   custom_css: []                 # 任意。追加CSSファイルのパス一覧
+  # logo: brand/logo.svg         # 任意。ヘッダ左に並記するロゴ（設定ファイル基準）
+  # favicon: brand/favicon.ico   # 任意。favicon（設定ファイル基準）
 
 # Markdown
 markdown:

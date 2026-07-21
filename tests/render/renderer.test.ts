@@ -180,4 +180,74 @@ describe("Renderer", () => {
     expect(htmlWith).toContain("#one");
     expect(htmlWithout).not.toContain('class="toc"');
   });
+
+  it("未設定時はfaviconリンクもsite-logoも出ない", () => {
+    // theme.logo / theme.favicon 未指定ならブランディング要素を埋め込まない
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    const page = createTestPage();
+    const renderer = new Renderer(fixture.config);
+    const html = renderer.renderPage(page, createTestContext(fixture.config, [page]));
+
+    expect(html).not.toMatch(/rel="icon"/);
+    expect(html).not.toContain("site-logo");
+  });
+
+  it("theme.faviconを設定するとlink rel=iconが出る", () => {
+    // faviconが全ページのheadへ埋め込まれること
+    const fixture = createRenderFixture({ favicon: "brand/favicon.ico" });
+    cleanups.push(fixture.cleanup);
+    const page = createTestPage();
+    const renderer = new Renderer(fixture.config);
+    const html = renderer.renderPage(page, createTestContext(fixture.config, [page]));
+
+    expect(html).toContain('rel="icon"');
+    expect(html).toContain('href="assets/brand/favicon.ico"');
+  });
+
+  it("SVGのfaviconにはtype=image/svg+xmlが付く", () => {
+    // SVG faviconはMIMEを明示する
+    const fixture = createRenderFixture({ favicon: "brand/icon.svg" });
+    cleanups.push(fixture.cleanup);
+    const page = createTestPage();
+    const renderer = new Renderer(fixture.config);
+    const html = renderer.renderPage(page, createTestContext(fixture.config, [page]));
+
+    expect(html).toMatch(/rel="icon"[^>]*type="image\/svg\+xml"/);
+    expect(html).toContain('href="assets/brand/icon.svg"');
+  });
+
+  it("theme.logoを設定するとヘッダにsite-logoが出る", () => {
+    // ロゴ画像がサイトタイトルの左に並記されること
+    const fixture = createRenderFixture({ logo: "brand/logo.svg" });
+    cleanups.push(fixture.cleanup);
+    const page = createTestPage();
+    const renderer = new Renderer(fixture.config);
+    const html = renderer.renderPage(page, createTestContext(fixture.config, [page]));
+
+    expect(html).toContain('class="site-logo"');
+    expect(html).toContain('src="assets/brand/logo.svg"');
+    // タイトル文字も残る（ロゴのみ表示ではない）
+    expect(html).toContain("Test Site");
+  });
+
+  it("ネストページでもlogo / faviconがroot経由で参照される", () => {
+    // guide/setup.html なら ../assets/brand/ になること
+    const fixture = createRenderFixture({
+      logo: "brand/logo.png",
+      favicon: "brand/favicon.ico"
+    });
+    cleanups.push(fixture.cleanup);
+    const page = createTestPage({
+      sourcePath: "guide/setup.md",
+      outputPath: "guide/setup.html",
+      url: "/guide/setup.html",
+      title: "Setup"
+    });
+    const renderer = new Renderer(fixture.config);
+    const html = renderer.renderPage(page, createTestContext(fixture.config, [page]));
+
+    expect(html).toContain('href="../assets/brand/favicon.ico"');
+    expect(html).toContain('src="../assets/brand/logo.png"');
+  });
 });

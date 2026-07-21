@@ -30,6 +30,20 @@ theme:
 
 パスは設定ファイル基準です。ビルド時に出力へコピーされ、各ページの `<head>` にリンクされます。
 
+## ロゴとfavicon
+
+```yaml
+theme:
+  logo: brand/logo.svg
+  favicon: brand/favicon.ico
+```
+
+- パスは設定ファイル基準の相対パスです
+- ビルド時に `assets/brand/<ファイル名>` へコピーされます
+- `logo` はヘッダのサイトタイトル左に画像として並記されます（未指定時は組み込みのマーク）
+- `favicon` は各ページの `<head>` に `<link rel="icon">` として埋め込まれます
+- SVG の favicon には自動で `type="image/svg+xml"` が付きます
+
 ## 初期テーマモード
 
 ```yaml

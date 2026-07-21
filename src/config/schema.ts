@@ -13,7 +13,11 @@ function withObjectDefaults<T extends z.ZodType>(schema: T)
 const themeSchema = z.object({
   overrides_dir: z.string().default("theme_overrides"),
   default_mode: z.enum(["auto", "light", "dark"]).default("auto"),
-  custom_css: z.array(z.string()).default([])
+  custom_css: z.array(z.string()).default([]),
+  // ヘッダ左に並記するロゴ画像（設定ファイル基準の相対パス）
+  logo: z.string().optional(),
+  // サイトのfavicon（設定ファイル基準の相対パス）
+  favicon: z.string().optional()
 }).strict();
 
 /** Markdown変換オプションのスキーマ */

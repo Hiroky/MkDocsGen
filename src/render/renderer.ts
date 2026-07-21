@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import nunjucks from "nunjucks";
 import type { ResolvedConfig } from "../config/schema.js";
 import type { BuildContext, Page } from "../types.js";
+import { resolveBrandAssetPath } from "./assets.js";
 
 /**
  * Nunjucksテンプレートでページを最終HTMLに変換するレンダラー
@@ -39,6 +40,13 @@ export class Renderer
     const customCss = this.config.theme.custom_css.map((filePath) => {
       return `assets/custom/${path.basename(filePath)}`;
     });
+    // logo / faviconも copyAssetsと同じ assets/brand/<basename> 規則で渡す
+    const logo = resolveBrandAssetPath(this.config.theme.logo);
+    const favicon = resolveBrandAssetPath(this.config.theme.favicon);
+    // SVG faviconはtypeを明示しないと一部ブラウザで認識されない
+    const faviconType = this.config.theme.favicon?.toLowerCase().endsWith(".svg")
+      ? "image/svg+xml"
+      : null;
 
     return this.env.render("page.njk", {
       site: {
@@ -50,6 +58,9 @@ export class Renderer
       nav: context.nav,
       root,
       customCss,
+      logo,
+      favicon,
+      faviconType,
       themeDefaultMode: this.config.theme.default_mode
     });
   }

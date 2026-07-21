@@ -14,6 +14,9 @@ Nunjucksテンプレート（組み込みテーマ / `theme_overrides/`）に渡
 | `nav` | `NavNode[]` | ナビゲーションツリー全体 |
 | `root` | `string` | 現在ページから出力ルートへの相対プレフィックス（例: `""` / `"../"`） |
 | `customCss` | `string[]` | 注入する追加CSSの相対パス一覧（例: `assets/custom/brand.css`） |
+| `logo` | `string \| null` | ヘッダロゴの相対パス（未設定時は `null`。例: `assets/brand/logo.svg`） |
+| `favicon` | `string \| null` | faviconの相対パス（未設定時は `null`。例: `assets/brand/favicon.ico`） |
+| `faviconType` | `string \| null` | SVG favicon時のみ `"image/svg+xml"`。それ以外は `null` |
 | `themeDefaultMode` | `"auto" \| "light" \| "dark"` | テーマ初期モード（`theme.default_mode`） |
 
 ## `site`
