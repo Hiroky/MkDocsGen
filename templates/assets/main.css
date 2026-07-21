@@ -504,6 +504,10 @@ a:hover {
 /* ---------------------------------------------------------------- */
 
 .nav-list {
+  /* トグル有無で文字開始位置がずれないよう、トグル列幅を共通化する */
+  --nav-toggle-size: 1.25rem;
+  --nav-toggle-gap: 0.1rem;
+  --nav-label-indent: 0.2rem;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -516,7 +520,7 @@ a:hover {
 .nav-section-row {
   display: flex;
   align-items: center;
-  gap: 0.1rem;
+  gap: var(--nav-toggle-gap);
 }
 
 .nav-toggle {
@@ -524,8 +528,8 @@ a:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.4rem;
-  height: 1.4rem;
+  width: var(--nav-toggle-size);
+  height: var(--nav-toggle-size);
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -544,9 +548,9 @@ a:hover {
   display: inline-block;
   width: 0;
   height: 0;
-  border-top: 0.28rem solid transparent;
-  border-bottom: 0.28rem solid transparent;
-  border-left: 0.38rem solid currentColor;
+  border-top: 0.26rem solid transparent;
+  border-bottom: 0.26rem solid transparent;
+  border-left: 0.36rem solid currentColor;
   transition: transform 0.18s ease;
 }
 
@@ -567,6 +571,18 @@ a:hover {
   font-weight: 500;
   line-height: 1.5;
   transition: color 0.12s ease, background 0.12s ease;
+}
+
+/* トグル横のラベルは左余白を抑えて間隔を詰める */
+.nav-section-row > .nav-link,
+.nav-section-row > .nav-label {
+  padding-left: var(--nav-label-indent);
+}
+
+/* トグル無しの葉ノードもトグル列分を空け、文字開始位置を揃える */
+.nav-item:not(.nav-item--section) > .nav-link,
+.nav-item:not(.nav-item--section) > .nav-label {
+  padding-left: calc(var(--nav-toggle-size) + var(--nav-toggle-gap) + var(--nav-label-indent));
 }
 
 /* リンクを持たないセクション見出しは小さめのラベルとして表示する */
