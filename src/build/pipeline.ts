@@ -4,6 +4,7 @@ import { loadConfig } from "../config/load.js";
 import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
 import { createConverter } from "../markdown/convert.js";
+import { extractToctreePlaceholders, resolvePageToctrees } from "../markdown/toctree.js";
 import {
   runBuildEnd,
   runConfigResolved,
@@ -232,8 +233,10 @@ export async function convertSourcesToPages(
       source.markdown,
       toPageMeta(source)
     );
+    // ::: toctree をプレースホルダへ置換（Admonitionが拾わないようにconvert前に除去する）
+    const toctreeExtracted = extractToctreePlaceholders(markdown);
     // ::: pydoc をAPIドキュメントMarkdownへ展開してから通常変換する
-    const expanded = expandPydocDirectives(markdown, config, logger, pythonParser);
+    const expanded = expandPydocDirectives(toctreeExtracted.markdown, config, logger, pythonParser);
     const converted = converter.convert(expanded.markdown, source.sourcePath);
     // 仕様どおりのドット区切りアンカーIDを見出し・HTML・検証用一覧へマージする
     const merged = mergePydocHeadings(
@@ -256,7 +259,8 @@ export async function convertSourcesToPages(
       plainText: converted.plainText,
       prev: relation.prev,
       next: relation.next,
-      breadcrumbs
+      breadcrumbs,
+      toctrees: toctreeExtracted.toctrees
     });
   }
   return { pages, converter, pythonParser };
@@ -277,10 +281,12 @@ export async function writeFullSite(
   // テーマ資産の前に docs の画像等を同じ相対パスでコピーする
   copyStaticDocs(config);
   copyAssets(config);
-  writeSearchIndex(config.outputDirAbs, buildSearchIndex(pages));
+  // toctreeプレースホルダを解決したコピーで検索・HTML出力する（元Pageはプレースホルダのまま保持）
+  const resolvedPages = pages.map((page) => resolvePageToctrees(page, nav, pages, logger));
+  writeSearchIndex(config.outputDirAbs, buildSearchIndex(resolvedPages));
   const renderer = new Renderer(config);
-  const context: BuildContext = { config, pages, nav };
-  for (const page of pages) {
+  const context: BuildContext = { config, pages: resolvedPages, nav };
+  for (const page of resolvedPages) {
     await writePageHtml(config, page, context, renderer, logger, plugins);
   }
   return context;

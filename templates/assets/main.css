@@ -1137,6 +1137,66 @@ html[data-theme="dark"] .admonition-danger .admonition-title {
 }
 
 /* ---------------------------------------------------------------- */
+/* 本文中 toctree（Sphinx風の子ページ一覧）                           */
+/* ---------------------------------------------------------------- */
+
+.toctree {
+  margin: 1.25rem 0 1.75rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-code-bg);
+}
+
+.toctree-caption {
+  margin: 0 0 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.toctree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.toctree-list .toctree-list {
+  margin-top: 0.2rem;
+  padding-left: 0.95rem;
+}
+
+.toctree-item {
+  margin: 0.15rem 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.toctree-item > a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.toctree-item > a:hover {
+  text-decoration: underline;
+}
+
+.toctree-section {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.toctree-item--heading {
+  font-size: 0.88rem;
+}
+
+.toctree-item--heading > a {
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------------- */
 /* フッター: コピーライト+Made with の2行を載せた帯                    */
 /* ---------------------------------------------------------------- */
 

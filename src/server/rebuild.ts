@@ -20,6 +20,7 @@ import { scanPages } from "../scanner/scan.js";
 import { buildSearchIndex, writeSearchIndex } from "../search/index.js";
 import type { BuildContext, NavNode, Page } from "../types.js";
 import { syncStaticDocPaths } from "../build/static-docs.js";
+import { resolvePageToctrees, toctreeDependsOnChangedUrls } from "../markdown/toctree.js";
 
 /** Markdown変換器の型（createConverterの戻り値） */
 type MarkdownConverter = Awaited<ReturnType<typeof createConverter>>;
@@ -178,19 +179,35 @@ export async function rebuildDocs(
   );
   const rebuiltPaths: string[] = [];
   const renderer = new Renderer(config);
-  const context: BuildContext = { config, pages: converted.pages, nav: navResult.nav };
+  // 書き出し・検索用にtoctreeを解決したコピーを使う（state上のPageはプレースホルダのまま）
+  const resolvedPages = converted.pages.map((page) =>
+    resolvePageToctrees(page, navResult.nav, converted.pages, logger)
+  );
+  const resolvedBySource = new Map(resolvedPages.map((page) => [page.sourcePath, page]));
+  const context: BuildContext = { config, pages: resolvedPages, nav: navResult.nav };
 
+  // 変更ページの出力URL集合（toctree親の依存判定に使う）
+  const changedUrls = new Set<string>();
   for (const page of converted.pages) {
-    if (!changedSet.has(page.sourcePath)) {
+    if (changedSet.has(page.sourcePath)) {
+      changedUrls.add(page.outputPath);
+    }
+  }
+
+  // 変更ページ＋toctreeが変更先に依存する親ページを再書き込みする
+  for (const page of converted.pages) {
+    const isChanged = changedSet.has(page.sourcePath);
+    const isToctreeParent = !isChanged && toctreeDependsOnChangedUrls(page, navResult.nav, changedUrls);
+    if (!isChanged && !isToctreeParent) {
       continue;
     }
-    // 変更ページだけHTMLを書き直す
-    await writePageHtml(config, page, context, renderer, logger, plugins);
+    const resolved = resolvedBySource.get(page.sourcePath) ?? page;
+    await writePageHtml(config, resolved, context, renderer, logger, plugins);
     rebuiltPaths.push(page.sourcePath);
   }
 
   // 検索インデックスは全文から作り直す（ページ数が少なくコストが小さい）
-  writeSearchIndex(config.outputDirAbs, buildSearchIndex(converted.pages));
+  writeSearchIndex(config.outputDirAbs, buildSearchIndex(resolvedPages));
   // 増分ではbuildEndを呼ばない（serve保存連打で副作用プラグインが毎回同期されないようにする）
   if (rebuiltPaths.length > 0) {
     logger.info(`増分ビルド: ${rebuiltPaths.length}ページを更新`);

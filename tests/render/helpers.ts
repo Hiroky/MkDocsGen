@@ -76,6 +76,7 @@ export function createTestPage(overrides: Partial<Page> = {}): Page
     prev: null,
     next: null,
     breadcrumbs: [],
+    toctrees: [],
     ...overrides
   };
 }

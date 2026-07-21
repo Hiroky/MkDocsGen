@@ -64,7 +64,8 @@ function fakePage(): Page
     plainText: "hi",
     prev: null,
     next: null,
-    breadcrumbs: []
+    breadcrumbs: [],
+    toctrees: []
   };
 }
 

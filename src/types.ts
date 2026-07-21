@@ -1,4 +1,5 @@
 import type { ResolvedConfig } from "./config/schema.js";
+import type { ToctreeMeta } from "./markdown/toctree.js";
 
 /**
  * ページ内見出し（目次・アンカー用）
@@ -44,6 +45,8 @@ export interface Page {
   prev: PageRef | null;
   next: PageRef | null;
   breadcrumbs: PageRef[];
+  /** ::: toctree のメタ。contentHtml内プレースホルダと対応する */
+  toctrees: ToctreeMeta[];
 }
 
 /**

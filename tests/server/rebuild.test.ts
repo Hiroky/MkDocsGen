@@ -120,6 +120,55 @@ describe("rebuild helpers", () => {
     }
   });
 
+  it("子ページの見出し変更でtoctree親も再書き込みする", async () => {
+    // toctreeは子のheadingsに依存するため、子変更時は親HTMLも更新する
+    const { fullBuild, rebuildDocs } = await import("../../src/server/rebuild.js");
+    const root = createTempProject({
+      pages: {
+        "index.md": "---\ntitle: Home\n---\n\nWelcome.\n",
+        "guide/index.md": [
+          "---",
+          "title: Guide",
+          "---",
+          "",
+          "Overview.",
+          "",
+          "::: toctree",
+          "maxdepth: 2",
+          ":::",
+          ""
+        ].join("\n"),
+        "guide/a.md": "---\ntitle: Page A\n---\n\n## Old Heading\n\nBody.\n"
+      }
+    });
+    const logger = silentLogger();
+    const config = loadConfig(path.join(root, "mkdocsgen.yml"));
+
+    try {
+      const state = await fullBuild(config, logger);
+      const beforeGuide = fs.readFileSync(path.join(root, "site/guide/index.html"), "utf-8");
+      expect(beforeGuide).toContain("Old Heading");
+      expect(beforeGuide).toContain('class="toctree"');
+
+      fs.writeFileSync(
+        path.join(root, "docs/guide/a.md"),
+        "---\ntitle: Page A\n---\n\n## New Heading\n\nBody.\n",
+        "utf-8"
+      );
+
+      const result = await rebuildDocs(state, ["guide/a.md"], logger);
+      expect(result.mode).toBe("partial");
+      expect(result.rebuiltPaths).toContain("guide/a.md");
+      expect(result.rebuiltPaths).toContain("guide/index.md");
+
+      const afterGuide = fs.readFileSync(path.join(root, "site/guide/index.html"), "utf-8");
+      expect(afterGuide).toContain("New Heading");
+      expect(afterGuide).not.toContain("Old Heading");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("監視パス種別を正しく分類する", async () => {
     const { classifyPath } = await import("../../src/server/rebuild.js");
     const root = createTempProject();
