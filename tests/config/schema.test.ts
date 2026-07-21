@@ -24,6 +24,7 @@ describe("rawConfigSchema", () => {
     expect(result.data.theme.default_mode).toBe("auto");
     expect(result.data.theme.custom_css).toEqual([]);
     expect(result.data.markdown.allow_html).toBe(true);
+    expect(result.data.markdown.breaks).toBe(true);
     expect(result.data.pydoc.source_dirs).toEqual([]);
     expect(result.data.plugins).toEqual([]);
     expect(result.data.serve.port).toBe(3000);

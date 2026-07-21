@@ -36,7 +36,7 @@ export function createRenderFixture(options: {
       default_mode: options.defaultMode ?? "auto",
       custom_css: options.customCss ?? []
     },
-    markdown: { allow_html: true },
+    markdown: { allow_html: true, breaks: true },
     pydoc: { source_dirs: [] },
     plugins: [],
     serve: { port: 3000 },

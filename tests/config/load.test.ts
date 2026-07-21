@@ -25,6 +25,7 @@ describe("loadConfig", () => {
     expect(config.output_dir).toBe("site");
     expect(config.theme.default_mode).toBe("auto");
     expect(config.markdown.allow_html).toBe(true);
+    expect(config.markdown.breaks).toBe(true);
   });
 
   it("相対パスは設定ファイル基準の絶対パスに解決される", () => {

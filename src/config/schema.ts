@@ -18,7 +18,9 @@ const themeSchema = z.object({
 
 /** Markdown変換オプションのスキーマ */
 const markdownSchema = z.object({
-  allow_html: z.boolean().default(true)
+  allow_html: z.boolean().default(true),
+  // 段落内の通常改行を<br>にする（日本語ドキュメント向けの既定）
+  breaks: z.boolean().default(true)
 }).strict();
 
 /** PyDoc設定のスキーマ */

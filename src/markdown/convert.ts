@@ -27,10 +27,11 @@ export async function createConverter(config: ResolvedConfig, logger: Logger)
   // Shikiは非同期初期化のため、変換器生成時に1回だけ用意する
   const highlighter = await createCodeHighlighter();
 
-  // 設定に応じて生HTML許可を切り替え、GFM相当のlinkifyを有効にする
+  // 設定に応じて生HTML許可・通常改行の<br>化を切り替え、GFM相当のlinkifyを有効にする
   const md = new MarkdownIt({
     html: config.markdown.allow_html,
-    linkify: true
+    linkify: true,
+    breaks: config.markdown.breaks
   });
   // タスクリストはmarkdown-it標準に無いため自前プラグインで補う
   md.use(taskListPlugin);

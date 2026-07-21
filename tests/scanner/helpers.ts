@@ -36,7 +36,7 @@ export function createDocsFixture(
     nav: options.nav ?? [],
     exclude: options.exclude ?? [],
     theme: { overrides_dir: "theme_overrides", default_mode: "auto", custom_css: [] },
-    markdown: { allow_html: true },
+    markdown: { allow_html: true, breaks: true },
     pydoc: { source_dirs: [] },
     plugins: [],
     serve: { port: 3000 },

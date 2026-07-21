@@ -89,6 +89,7 @@ theme:
 # Markdown
 markdown:
   allow_html: true               # 任意。生HTMLを許可するか
+  breaks: true                   # 任意。段落内の通常改行を<br>にするか
 
 # Python APIドキュメント
 pydoc:

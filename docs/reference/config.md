@@ -28,6 +28,7 @@ theme:
 
 markdown:
   allow_html: true
+  breaks: true
 
 pydoc:
   source_dirs: []

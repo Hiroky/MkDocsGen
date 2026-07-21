@@ -29,7 +29,7 @@ export function createPluginFixture(options: {
     nav: [],
     exclude: [],
     theme: { overrides_dir: "theme_overrides", default_mode: "auto", custom_css: [] },
-    markdown: { allow_html: true },
+    markdown: { allow_html: true, breaks: true },
     pydoc: { source_dirs: [] },
     plugins: (options.plugins ?? []).map((entry) => ({
       path: entry.path,

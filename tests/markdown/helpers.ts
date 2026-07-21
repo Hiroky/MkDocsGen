@@ -5,7 +5,7 @@ import { Logger } from "../../src/logger.js";
 /**
  * Markdown変換テスト用の最小ResolvedConfigを組み立てる
  */
-export function createMarkdownConfig(options: { allowHtml?: boolean } = {}): ResolvedConfig
+export function createMarkdownConfig(options: { allowHtml?: boolean; breaks?: boolean } = {}): ResolvedConfig
 {
   // ファイルI/Oは使わないのでパスはダミーでよい
   const root = "/tmp/mkdocsgen-markdown-test";
@@ -16,7 +16,7 @@ export function createMarkdownConfig(options: { allowHtml?: boolean } = {}): Res
     nav: [],
     exclude: [],
     theme: { overrides_dir: "theme_overrides", default_mode: "auto", custom_css: [] },
-    markdown: { allow_html: options.allowHtml ?? true },
+    markdown: { allow_html: options.allowHtml ?? true, breaks: options.breaks ?? true },
     pydoc: { source_dirs: [] },
     plugins: [],
     serve: { port: 3000 },

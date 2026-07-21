@@ -22,6 +22,7 @@ site:
 | `exclude` | glob 形式の除外パターン |
 | `theme` | オーバーライドDIR・初期テーマ・追加CSS |
 | `markdown.allow_html` | 生HTMLの許可（既定: `true`） |
+| `markdown.breaks` | 段落内の通常改行を `<br>` にする（既定: `true`） |
 | `pydoc.source_dirs` | `::: pydoc` のモジュール探索パス |
 | `plugins` | ローカル ESM プラグイン一覧 |
 | `serve.port` | 開発サーバーのポート |

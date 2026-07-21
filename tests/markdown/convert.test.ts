@@ -59,6 +59,23 @@ describe("createConverter", () => {
 
       expect(html).toContain('<div class="note">hi</div>');
     });
+
+    it("既定では段落内の通常改行をbrにする", async () => {
+      // 日本語ドキュメント向けにEnterがそのまま見た目の改行になること
+      const converter = await createConverter(createMarkdownConfig(), createSilentLogger());
+      const { html } = converter.convert("一行目\n二行目\n", "index.md");
+
+      expect(html).toContain("一行目<br>\n二行目");
+    });
+
+    it("breaksがfalseのとき段落内の通常改行はbrにしない", async () => {
+      // CommonMark互換が欲しい場合は連結（ハードブレークは末尾2スペース）
+      const converter = await createConverter(createMarkdownConfig({ breaks: false }), createSilentLogger());
+      const { html } = converter.convert("一行目\n二行目\n", "index.md");
+
+      expect(html).not.toContain("<br>");
+      expect(html).toContain("一行目\n二行目");
+    });
   });
 
   describe("C-2 アンカー/headings", () => {
