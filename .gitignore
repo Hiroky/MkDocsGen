@@ -44,3 +44,4 @@ examples/**/site/
 /data/
 
 .DS_Store
+*.tgz
