@@ -26,7 +26,8 @@
     "docs:build": "tsx src/cli/index.ts build --config ./mkdocsgen.yml --clean",
     "docs:serve": "tsx src/cli/index.ts serve --config ./mkdocsgen.yml",
     "bench": "TEST_PERF=1 tsx scripts/bench-build.ts",
-    "test:perf": "TEST_PERF=1 vitest run tests/perf"
+    "test:perf": "TEST_PERF=1 vitest run tests/perf",
+    "release:pack": "npm run build && npm pack"
   },
   "dependencies": {
     "chokidar": "^3.6.0",
