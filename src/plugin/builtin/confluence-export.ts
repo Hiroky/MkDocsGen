@@ -470,9 +470,12 @@ async function prepareConfluenceBody(
   sourcePath: string | null
 ): Promise<{ value: string; images: LocalImageRef[] }>
 {
+  // allow_htmlで通過したHTML風の記述には、XHTML属性として不正な独自タグが
+  // 含まれることがある。Confluenceへ送る前に、そのタグだけを文字列へ戻す
+  const safeBodyHtml = escapeMalformedHtmlTags(bodyHtml);
   const { html: imagesRewrittenHtml, images } = sourcePath
-    ? rewriteLocalImages(bodyHtml, docsDirAbs, sourcePath)
-    : { html: bodyHtml, images: [] as LocalImageRef[] };
+    ? rewriteLocalImages(safeBodyHtml, docsDirAbs, sourcePath)
+    : { html: safeBodyHtml, images: [] as LocalImageRef[] };
   let htmlWithImageMetadata = imagesRewrittenHtml;
 
   // 画像本体を読み、次回以降の差分判定に使うSHA-256を計算する
@@ -486,6 +489,35 @@ async function prepareConfluenceBody(
   }
 
   return { value: toXhtmlVoidElements(htmlWithImageMetadata), images };
+}
+
+/** 属性構文が不正なHTML風タグをエスケープし、ConfluenceのXHTMLパースエラーを防ぐ */
+function escapeMalformedHtmlTags(html: string): string
+{
+  const malformedTagNames = new Set<string>();
+  const tagPattern = /<(\/?)\s*([A-Za-z][A-Za-z0-9:_-]*)([^>]*)>/g;
+  return html.replace(tagPattern, (match, slash: string, tagName: string, attrs: string) => {
+    const normalizedTagName = tagName.toLowerCase();
+    if (slash !== "") {
+      if (malformedTagNames.delete(normalizedTagName)) {
+        return escapeHtml(match);
+      }
+      return match;
+    }
+    if (isValidXhtmlAttributes(attrs)) {
+      return match;
+    }
+    if (!/\/\s*$/.test(attrs)) {
+      malformedTagNames.add(normalizedTagName);
+    }
+    return escapeHtml(match);
+  });
+}
+
+/** XHTML属性列が名前と値の組み合わせとして正しいか判定する */
+function isValidXhtmlAttributes(attrs: string): boolean
+{
+  return /^(?:\s+[A-Za-z_:][A-Za-z0-9:._-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))*\s*\/?\s*$/.test(attrs);
 }
 
 /** ローカル画像のSHA-256を計算する。ファイルを読めない場合はnullを返す */

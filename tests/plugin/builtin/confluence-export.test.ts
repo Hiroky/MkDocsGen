@@ -684,6 +684,40 @@ describe("confluence-export ビルトインプラグイン", () => {
     }
   });
 
+  it("不正なHTML属性構文のタグはConfluence用本文で文字列としてエスケープする", async () => {
+    let createdBody = "";
+    const fetchMock = vi.fn(async (urlArg: string | URL, init?: RequestInit) => {
+      const requestUrl = String(urlArg);
+      const method = init?.method;
+      if (method === undefined && requestUrl.includes("/rest/api/content?")) {
+        return new Response(JSON.stringify({ results: [] }), { status: 200 });
+      }
+      if (method === "POST" && requestUrl.endsWith("/rest/api/content")) {
+        const payload = JSON.parse(String(init!.body)) as { body: { storage: { value: string } } };
+        createdBody = payload.body.storage.value;
+        return new Response(JSON.stringify({ id: "999", version: { number: 1 } }), { status: 200 });
+      }
+      if (method === "POST" && requestUrl.endsWith("/property")) {
+        return new Response(JSON.stringify({ id: "property-1" }), { status: 200 });
+      }
+      throw new Error(`unexpected fetch call: ${method ?? "GET"} ${requestUrl}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const context = createContext();
+    context.pages[0]!.contentHtml = "<p><strong 値>文字</strong><icon OK/></p>";
+    const plugin = createConfluenceExportPlugin({
+      url: "https://example.atlassian.net/wiki",
+      username: "alice",
+      space: "DOCS"
+    });
+    process.env.CONFLUENCE_PASSWORD = "s3cr3t";
+
+    await expect(plugin.buildEnd?.(context)).resolves.toBeUndefined();
+    expect(createdBody).toContain("&lt;strong 値&gt;");
+    expect(createdBody).toContain("&lt;icon OK/&gt;");
+  });
+
   it("同名でも別ソースから作られたページしか無ければ既存ページを上書きせず新規作成する", async () => {
     // 同名ページが別ソースのものしか無い場合、タイトルではなくsourceKeyで新規ページを作る
     const createdBodies: string[] = [];
