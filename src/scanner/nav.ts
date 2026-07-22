@@ -104,7 +104,89 @@ function buildAutoTree(sources: PageSource[]): TreeNode
     }
   }
 
+  // PyDoc生成ページ用に作られた仮想セクションを、生成元ページの子へ移す
+  attachGeneratedPydocChildren(root, sources);
   return root;
+}
+
+/**
+ * PyDocページを生成元Markdownページの配下へ移動する
+ */
+function attachGeneratedPydocChildren(root: TreeNode, sources: PageSource[]): void
+{
+  // 同じ親ページに複数のPyDocディレクティブがあっても一度だけ処理する
+  const parentPaths = new Set(
+    sources
+      .filter((source) => source.generatedPydoc !== undefined)
+      .map((source) => source.generatedPydoc!.generatedFrom)
+  );
+
+  for (const parentPath of parentPaths) {
+    const parent = findPageNode(root.children, parentPath);
+    if (!parent) {
+      continue;
+    }
+
+    // generated source pathの先頭にある、元ページ名由来のセクションを探す
+    const sectionPath = parentPath.replace(/\.md$/u, "");
+    const generatedSection = findSectionByPath(root, sectionPath);
+    if (!generatedSection || generatedSection.node === parent.node) {
+      continue;
+    }
+
+    // セクション見出し（api等）は不要なので、子ページだけを元ページへ移す
+    parent.node.children.push(...generatedSection.node.children);
+    const sectionIndex = generatedSection.siblings.indexOf(generatedSection.node);
+    if (sectionIndex >= 0) {
+      generatedSection.siblings.splice(sectionIndex, 1);
+    }
+  }
+}
+
+/**
+ * sourcePathに対応するページノードと、その兄弟配列を探す
+ */
+function findPageNode(
+  nodes: TreeNode[],
+  sourcePath: string
+): { node: TreeNode; siblings: TreeNode[] } | null
+{
+  for (const node of nodes) {
+    if (node.page?.sourcePath === sourcePath) {
+      return { node, siblings: nodes };
+    }
+    const found = findPageNode(node.children, sourcePath);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+}
+
+/**
+ * ディレクトリパスに対応するセクションノードと、その兄弟配列を探す
+ */
+function findSectionByPath(
+  root: TreeNode,
+  sectionPath: string
+): { node: TreeNode; siblings: TreeNode[] } | null
+{
+  const parts = sectionPath.split("/").filter((part) => part.length > 0);
+  let siblings = root.children;
+  let node: TreeNode | undefined;
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i]!;
+    node = siblings.find((candidate) => candidate.kind === "section" && candidate.name === part);
+    if (!node) {
+      return null;
+    }
+    if (i < parts.length - 1) {
+      siblings = node.children;
+    }
+  }
+
+  return node ? { node, siblings } : null;
 }
 
 /**
@@ -290,7 +372,7 @@ function toNavNode(node: TreeNode): NavNode
     return {
       title: node.title,
       url: node.page?.outputPath ?? null,
-      children: []
+      children: node.children.map(toNavNode)
     };
   }
 
@@ -323,6 +405,14 @@ function flattenTree(
         breadcrumbsMap.set(node.page.sourcePath, crumbs);
       }
       orderedPages.push(node.page);
+      if (node.children.length > 0) {
+        // ページ配下へ移したPyDocページにも親ページの階層を引き継ぐ
+        const pageRef: PageRef = { title: node.title, url: node.page.outputPath };
+        const childCrumbs = node.page.sourcePath === "index.md"
+          ? parentCrumbs
+          : [...parentCrumbs, pageRef];
+        flattenTree(node.children, childCrumbs, orderedPages, breadcrumbsMap);
+      }
       continue;
     }
 

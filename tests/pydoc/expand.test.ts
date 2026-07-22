@@ -73,6 +73,33 @@ describe("expandPydocDirectives", () => {
     expect(extraHeadings.some((h) => h.anchorId === "mypackage.mymodule.Greeter")).toBe(true);
   });
 
+  it("パッケージ指定時は配下の全モジュールを1つのディレクティブから展開する", async () => {
+    // パッケージの追加モジュールが静的なMarkdownスタブなしで反映されることを確認する
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "mkdocsgen-pydoc-expand-"));
+    cleanups.push(() => fs.rmSync(root, { recursive: true, force: true }));
+    const src = path.join(root, "src");
+    fs.mkdirSync(path.join(src, "mypackage", "nested"), { recursive: true });
+    fs.writeFileSync(path.join(src, "mypackage", "__init__.py"), '"""Package API."""\n', "utf-8");
+    fs.writeFileSync(path.join(src, "mypackage", "first.py"), '"""First API."""\n\ndef first() -> None:\n    """First function."""\n', "utf-8");
+    fs.writeFileSync(path.join(src, "mypackage", "nested", "__init__.py"), '"""Nested API."""\n', "utf-8");
+    fs.writeFileSync(path.join(src, "mypackage", "nested", "second.py"), '"""Second API."""\n\ndef second() -> None:\n    """Second function."""\n', "utf-8");
+
+    const parser = await createPythonParser();
+    const { markdown, extraHeadings } = expandPydocDirectives(
+      "::: pydoc mypackage\n",
+      createConfig(root, ["./src"]),
+      silentLogger(),
+      parser
+    );
+
+    expect(markdown).toContain("Package API.");
+    expect(markdown).toContain("First API.");
+    expect(markdown).toContain("Second API.");
+    expect(markdown.indexOf("# mypackage")).toBeLessThan(markdown.indexOf("# first"));
+    expect(markdown.indexOf("# first")).toBeLessThan(markdown.indexOf("# nested"));
+    expect(extraHeadings.some((heading) => heading.anchorId === "mypackage.nested.second.second")).toBe(true);
+  });
+
   it("モジュール解決失敗時は ModuleResolveError を投げる", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mkdocsgen-pydoc-expand-"));
     cleanups.push(() => fs.rmSync(root, { recursive: true, force: true }));

@@ -9,6 +9,8 @@ export interface Heading {
   level: number;
   /** タグ除去済みテキスト */
   text: string;
+  /** 目次で表示するテキスト。未指定時はtextを使う */
+  tocText?: string;
   /** slug化されたID */
   anchorId: string;
 }
@@ -47,6 +49,8 @@ export interface Page {
   breadcrumbs: PageRef[];
   /** ::: toctree のメタ。contentHtml内プレースホルダと対応する */
   toctrees: ToctreeMeta[];
+  /** PyDocの解析結果を含むページかどうか */
+  isPydoc?: boolean;
 }
 
 /**

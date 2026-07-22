@@ -79,11 +79,9 @@ function renderClass(
 {
   const classLevel = moduleHeadingLevel + 1;
   const anchorId = `${modulePath}.${cls.name}`;
-  pushHeading(parts, extraHeadings, classLevel, cls.name, anchorId);
-
-  // クラスシグネチャをコードブロックで示す
-  const bases = cls.bases.length > 0 ? `(${cls.bases.join(", ")})` : "";
-  parts.push("```python", `class ${cls.name}${bases}:`, "```", "");
+  // クラス名と継承元を見出しへまとめ、直後に同じシグネチャをコードブロックで重複表示しない
+  const headingText = formatClassHeading(cls);
+  pushHeading(parts, extraHeadings, classLevel, headingText, anchorId, cls.name);
   appendDocstring(parts, cls.docstring, new Map());
 
   if (cls.attributes.length > 0) {
@@ -105,6 +103,15 @@ function renderClass(
 }
 
 /**
+ * クラスセクションの見出しへ表示する名前と継承元を組み立てる
+ */
+function formatClassHeading(cls: PyClassDoc): string
+{
+  const bases = cls.bases.length > 0 ? `(${cls.bases.join(", ")})` : "";
+  return `${cls.name}${bases}`;
+}
+
+/**
  * 関数またはメソッドを見出し・シグネチャ・docstringとして書き出す
  */
 function renderFunction(
@@ -119,12 +126,41 @@ function renderFunction(
   const anchorId = className
     ? `${modulePath}.${className}.${fn.name}`
     : `${modulePath}.${fn.name}`;
-  pushHeading(parts, extraHeadings, level, fn.name, anchorId);
-  parts.push("```python", fn.signature, "```", "");
+  // 関数名と引数を見出しへまとめ、直後に同じ署名をコードブロックで重複表示しない
+  const headingText = formatFunctionHeading(fn, className);
+  pushHeading(parts, extraHeadings, level, headingText, anchorId, fn.name);
 
   // Args の型はシグネチャ注釈を優先してマージする
   const typeMap = new Map(fn.params.map((p) => [p.name, p.type] as const));
   appendDocstring(parts, mergeArgTypes(fn.docstring, typeMap), typeMap);
+}
+
+/**
+ * 関数セクションの見出しへ表示する名前と引数を組み立てる
+ */
+function formatFunctionHeading(fn: PyFunctionDoc, className: string | null): string
+{
+  // メソッドのself/clsは呼び出し側が指定しない暗黙引数なので見出しから省略する
+  const params = className && (fn.params[0]?.name === "self" || fn.params[0]?.name === "cls")
+    ? fn.params.slice(1)
+    : fn.params;
+  const parameterText = params.map(formatParameter).join(", ");
+  return `${fn.name}(${parameterText})`;
+}
+
+/**
+ * 関数見出し用に引数の型とデフォルト値を整形する
+ */
+function formatParameter(param: PyFunctionDoc["params"][number]): string
+{
+  let text = param.name;
+  if (param.type) {
+    text += `: ${param.type}`;
+  }
+  if (param.default !== null) {
+    text += ` = ${param.default}`;
+  }
+  return text;
 }
 
 /**
@@ -181,7 +217,8 @@ function pushHeading(
   extraHeadings: Heading[],
   level: number,
   text: string,
-  anchorId: string
+  anchorId: string,
+  tocText?: string
 ): void
 {
   // Markdown / 目次とも 1〜6 に収める（深い heading-level でも仕様アンカーを落とさない）
@@ -189,7 +226,12 @@ function pushHeading(
   const marks = "#".repeat(clamped);
   parts.push(`${marks} ${text}`, "");
   // 目次は h2〜h6（既存 convert と同じ）。h1 もリンク検証用に保持する
-  extraHeadings.push({ level: clamped, text, anchorId });
+  extraHeadings.push({
+    level: clamped,
+    text,
+    ...(tocText !== undefined ? { tocText } : {}),
+    anchorId
+  });
 }
 
 /**

@@ -111,10 +111,11 @@ describe("renderModuleDoc", () => {
     });
 
     expect(markdown).toContain("## mymodule");
-    expect(markdown).toContain("### Greeter");
-    expect(markdown).toContain("#### shout");
+    expect(markdown).toContain("### Greeter(Base)");
+    expect(markdown).not.toContain("class Greeter(Base):");
+    expect(markdown).toContain("#### shout(text: str)");
+    expect(markdown).not.toContain("def shout(text: str) -> str");
     expect(markdown).toContain("```python");
-    expect(markdown).toContain("def shout(text: str) -> str");
     expect(markdown).toContain("| Name | Type | Description |");
     expect(markdown).toContain("`text`");
     expect(markdown).toContain("**Returns**");
@@ -130,10 +131,10 @@ describe("renderModuleDoc", () => {
     expect(extraHeadings).toEqual(
       expect.arrayContaining([
         { level: 2, text: "mymodule", anchorId: "mypackage.mymodule" },
-        { level: 3, text: "Greeter", anchorId: "mypackage.mymodule.Greeter" },
-        { level: 4, text: "__init__", anchorId: "mypackage.mymodule.Greeter.__init__" },
-        { level: 4, text: "shout", anchorId: "mypackage.mymodule.Greeter.shout" },
-        { level: 4, text: "greet", anchorId: "mypackage.mymodule.greet" }
+        { level: 3, text: "Greeter(Base)", tocText: "Greeter", anchorId: "mypackage.mymodule.Greeter" },
+        { level: 4, text: "__init__(name: str)", tocText: "__init__", anchorId: "mypackage.mymodule.Greeter.__init__" },
+        { level: 4, text: "shout(text: str)", tocText: "shout", anchorId: "mypackage.mymodule.Greeter.shout" },
+        { level: 4, text: "greet(name: str)", tocText: "greet", anchorId: "mypackage.mymodule.greet" }
       ])
     );
   });
@@ -146,8 +147,8 @@ describe("renderModuleDoc", () => {
       headingLevel: 5
     });
     expect(markdown).toContain("##### mymodule");
-    expect(markdown).toContain("###### Greeter");
-    expect(markdown).toContain("###### __init__");
+    expect(markdown).toContain("###### Greeter(Base)");
+    expect(markdown).toContain("###### __init__(name: str)");
     expect(extraHeadings.every((h) => h.level >= 1 && h.level <= 6)).toBe(true);
     expect(extraHeadings.some((h) => h.anchorId === "mypackage.mymodule.Greeter.__init__")).toBe(true);
   });
@@ -158,7 +159,7 @@ describe("renderModuleDoc", () => {
       showPrivate: false,
       headingLevel: 2
     });
-    expect(markdown).toContain("#### greet");
+    expect(markdown).toContain("#### greet(name: str)");
     expect(markdown).not.toContain("### Greeter");
   });
 

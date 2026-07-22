@@ -62,4 +62,11 @@ describe("parsePydocDirectiveBlock / findPydocDirectives", () => {
     expect(found).toHaveLength(1);
     expect(found[0]!.modulePath).toBe("outside.mod");
   });
+
+  it("CRLFのMarkdownでもディレクティブを検出する", () => {
+    const found = findPydocDirectives("::: pydoc win.mod\r\n");
+
+    expect(found).toHaveLength(1);
+    expect(found[0]!.modulePath).toBe("win.mod");
+  });
 });

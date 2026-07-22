@@ -50,6 +50,52 @@ describe("parseGoogleDocstring", () => {
     expect(parsed.returns).toBe("Items.");
   });
 
+  it("ReSTのcode-blockを空行を含む1つのPythonコードブロックとして取り出す", () => {
+    const parsed = parseGoogleDocstring(`
+    Example.
+
+    Examples:
+        .. code-block:: python
+
+            import engine.cmds as cmds
+
+            entity = cmds.createEntity()
+            print(entity)
+    `);
+
+    expect(parsed.examples).toEqual([
+      "import engine.cmds as cmds\n\nentity = cmds.createEntity()\nprint(entity)"
+    ]);
+  });
+
+  it("ReSTの縦棒付き本文をコードブロックにせず通常本文として取り出す", () => {
+    const parsed = parseGoogleDocstring([
+      "現在のシーンを保存",
+      "",
+      "\t| 指定したシーンオブジェクトを保存します。",
+      "\t| pathがNoneの場合は上書き保存、指定した場合は別名保存となります。",
+      ""
+    ].join("\n"));
+
+    expect(parsed.body).toBe(
+      "指定したシーンオブジェクトを保存します。\npathがNoneの場合は上書き保存、指定した場合は別名保存となります。"
+    );
+  });
+
+  it("空行後にインデントされた通常本文をコードブロックにしない", () => {
+    const parsed = parseGoogleDocstring([
+      "現在のシーンを保存",
+      "",
+      "\t指定したシーンオブジェクトを保存します。",
+      "\tpathがNoneの場合は上書き保存、指定した場合は別名保存となります。",
+      ""
+    ].join("\n"));
+
+    expect(parsed.body).toBe(
+      "指定したシーンオブジェクトを保存します。\npathがNoneの場合は上書き保存、指定した場合は別名保存となります。"
+    );
+  });
+
   it("解釈できない部分をエラーにせず本文へ残す", () => {
     // 不正形式はプレーンテキスト許容
     const parsed = parseGoogleDocstring("Summary.\n\nNotARealSection:\n    stuff\n");

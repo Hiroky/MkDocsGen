@@ -5,7 +5,7 @@ import { loadConfig } from "../config/load.js";
 import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
 import { createConverter } from "../markdown/convert.js";
-import { extractToctreePlaceholders, resolvePageToctrees } from "../markdown/toctree.js";
+import { extractToctreePlaceholders, resolvePageToctrees, type ExtractToctreeResult } from "../markdown/toctree.js";
 import {
   runBuildEnd,
   runConfigResolved,
@@ -15,14 +15,17 @@ import {
 import { loadPlugins } from "../plugin/load.js";
 import type { PageMeta, Plugin } from "../plugin/types.js";
 import { expandPydocDirectives, mergePydocHeadings } from "../pydoc/expand.js";
+import { expandPydocPackagePages } from "../pydoc/pages.js";
 import { ModuleResolveError } from "../pydoc/resolve.js";
+import { parsePythonModule } from "../pydoc/parser.js";
+import { renderModuleDoc, renderSyntaxError } from "../pydoc/render.js";
 import { createPythonParser, type PythonParser } from "../pydoc/tree-sitter.js";
 import { copyAssets } from "../render/assets.js";
 import { Renderer } from "../render/renderer.js";
 import { assignPrevNext, buildNav } from "../scanner/nav.js";
 import { scanPages, type PageSource } from "../scanner/scan.js";
 import { buildSearchIndex, writeSearchIndex } from "../search/index.js";
-import type { BuildContext, NavNode, Page } from "../types.js";
+import type { BuildContext, Heading, NavNode, Page } from "../types.js";
 import { copyStaticDocs } from "./static-docs.js";
 import { validateLinks } from "./validate-links.js";
 
@@ -140,7 +143,17 @@ export async function buildSite(
   }
 
   // ページ走査 → ナビ構築 → prev/next割り当て
-  const sources = scanPages(config, logger);
+  const scannedSources = scanPages(config, logger);
+  let sources: PageSource[];
+  try {
+    sources = expandPydocPackagePages(scannedSources, config, logger).sources;
+  } catch (error) {
+    // パッケージディレクティブの事前解決失敗も通常のpydoc解決失敗と同じCLIエラーへ統一する
+    if (error instanceof ModuleResolveError) {
+      throw new BuildError(error.message);
+    }
+    throw error;
+  }
   logger.debug(`走査ページ数: ${sources.length}`);
   const navResult = buildNav(sources, config, logger);
   // tree-sitter WASMは初回だけ初期化し、serve増分で再利用する
@@ -244,16 +257,35 @@ export async function convertSourcesToPages(
       logger.debug(`増分ビルド: 前回ページが無いため再変換します: ${source.sourcePath}`);
     }
 
-    // Markdown変換前にプラグインでソースを加工する
-    const markdown = await runTransformMarkdown(
-      plugins,
-      source.markdown,
-      toPageMeta(source)
-    );
-    // ::: toctree をプレースホルダへ置換（Admonitionが拾わないようにconvert前に除去する）
-    const toctreeExtracted = extractToctreePlaceholders(markdown);
-    // ::: pydoc をAPIドキュメントMarkdownへ展開してから通常変換する
-    const expanded = expandPydocDirectives(toctreeExtracted.markdown, config, logger, pythonParser);
+    let toctreeExtracted: ExtractToctreeResult;
+    let expanded: { markdown: string; extraHeadings: Heading[]; hasPydoc: boolean };
+    if (source.generatedPydoc) {
+      // 自動生成ページは解決済みの1ファイルだけを直接解析し、パッケージ全体を再展開しない
+      const pythonSource = fs.readFileSync(source.generatedPydoc.filePath, "utf-8");
+      const parsed = parsePythonModule(pythonSource, source.generatedPydoc.modulePath, pythonParser);
+      if (parsed.ok) {
+        const rendered = renderModuleDoc(parsed.module, source.generatedPydoc.options);
+        expanded = { ...rendered, hasPydoc: true };
+      } else {
+        logger.warn(`${parsed.message} (${source.generatedPydoc.filePath})`);
+        expanded = {
+          ...renderSyntaxError(source.generatedPydoc.modulePath, parsed.message),
+          hasPydoc: true
+        };
+      }
+      toctreeExtracted = { markdown: "", toctrees: [] };
+    } else {
+      // Markdown変換前にプラグインでソースを加工する
+      const markdown = await runTransformMarkdown(
+        plugins,
+        source.markdown,
+        toPageMeta(source)
+      );
+      // ::: toctree をプレースホルダへ置換（Admonitionが拾わないようにconvert前に除去する）
+      toctreeExtracted = extractToctreePlaceholders(markdown);
+      // ::: pydoc をAPIドキュメントMarkdownへ展開してから通常変換する
+      expanded = expandPydocDirectives(toctreeExtracted.markdown, config, logger, pythonParser);
+    }
     const converted = converter.convert(expanded.markdown, source.sourcePath);
     // 仕様どおりのドット区切りアンカーIDを見出し・HTML・検証用一覧へマージする
     const merged = mergePydocHeadings(
@@ -277,7 +309,8 @@ export async function convertSourcesToPages(
       prev: relation.prev,
       next: relation.next,
       breadcrumbs,
-      toctrees: toctreeExtracted.toctrees
+      toctrees: toctreeExtracted.toctrees,
+      isPydoc: source.generatedPydoc !== undefined || expanded.hasPydoc
     });
   }
   return { pages, converter, pythonParser };

@@ -5,6 +5,19 @@ import matter from "gray-matter";
 import { ConfigError } from "../config/load.js";
 import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
+import type { PydocDirectiveOptions } from "../pydoc/types.js";
+
+/** 自動生成するPythonモジュールページの情報 */
+export interface GeneratedPydocSource {
+  /** Pythonモジュールのドット区切りパス */
+  modulePath: string;
+  /** 解析対象のPythonファイル */
+  filePath: string;
+  /** pydocディレクティブから引き継ぐ表示オプション */
+  options: PydocDirectiveOptions;
+  /** 生成元となったMarkdownページ */
+  generatedFrom: string;
+}
 
 /**
  * 走査直後のページ素材。Markdown変換前のメタ情報のみ持つ
@@ -28,6 +41,8 @@ export interface PageSource {
   outputPath: string;
   /** base_url込みのURL */
   url: string;
+  /** Pythonモジュールページの場合だけ設定される自動生成情報 */
+  generatedPydoc?: GeneratedPydocSource;
 }
 
 /**

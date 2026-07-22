@@ -13,6 +13,7 @@ import type { Logger } from "../logger.js";
 import type { createConverter } from "../markdown/convert.js";
 import type { Plugin } from "../plugin/types.js";
 import { ModuleResolveError } from "../pydoc/resolve.js";
+import { expandPydocPackagePages } from "../pydoc/pages.js";
 import type { PythonParser } from "../pydoc/tree-sitter.js";
 import { Renderer } from "../render/renderer.js";
 import { buildNav } from "../scanner/nav.js";
@@ -132,7 +133,8 @@ export async function rebuildDocs(
   const previousOutputs = new Map(state.pages.map((page) => [page.sourcePath, page.outputPath]));
 
   // 最新のソースを走査してナビを組み直す
-  const sources = scanPages(config, logger);
+  const scannedSources = scanPages(config, logger);
+  const sources = expandPydocPackagePages(scannedSources, config, logger).sources;
   const navResult = buildNav(sources, config, logger);
   const nextSignature = computeNavSignature(navResult.orderedPages);
 
@@ -165,6 +167,12 @@ export async function rebuildDocs(
   // navが不変なら、変更されたページだけ再変換・再レンダリングする
   const normalizedChanged = changedSourcePaths.map((p) => p.split(path.sep).join("/"));
   const changedSet = new Set(normalizedChanged.filter((p) => p.endsWith(".md")));
+  // パッケージディレクティブを含む親ページが変わった場合、生成された子ページも再変換する
+  for (const source of sources) {
+    if (source.generatedPydoc && changedSet.has(source.generatedPydoc.generatedFrom)) {
+      changedSet.add(source.sourcePath);
+    }
+  }
   // 画像など非Markdownの変更は出力へ同期する（追加・更新・削除）
   const staticChanged = normalizedChanged.filter((p) => !p.endsWith(".md"));
   if (staticChanged.length > 0) {

@@ -81,7 +81,7 @@ export function parseGoogleDocstring(raw: string): ParsedDocstring
     applySection(result, header, sectionLines);
   }
 
-  result.body = trimBlankEdges(bodyLines.join("\n"));
+  result.body = trimBlankEdges(normalizeRestBodyLines(bodyLines).join("\n"));
   return result;
 }
 
@@ -229,24 +229,91 @@ function parseRaisesSection(lines: string[]): ParsedDocstring["raises"]
  */
 function parseExamplesSection(lines: string[]): string[]
 {
-  // doctest 風の連続行を1ブロックとしてまとめる。空行で区切る
+  // ReSTのcode-blockはディレクティブ行と、その下のインデントされた本文で構成される。
+  // 空行を単純な区切りとして扱うと、1つのサンプルが複数のコードブロックに分割されるため、
+  // まずcode-block専用の解析を行う。
   const blocks: string[] = [];
   let current: string[] = [];
-  for (const line of lines) {
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index]!;
+    const codeDirective = line.match(/^(\s*)\.\.\s+(?:code-block|code)::(?:\s+([^\s]+))?\s*$/i);
+    if (codeDirective) {
+      // 直前のdoctest形式の本文があれば、ディレクティブの前で確定する
+      if (current.length > 0) {
+        blocks.push(current.join("\n"));
+        current = [];
+      }
+
+      const directiveIndent = codeDirective[1]!.length;
+      index += 1;
+      // ReSTではディレクティブと本文の間に空行を置けるため、先頭の空行は捨てる
+      while (index < lines.length && lines[index]!.trim() === "") {
+        index += 1;
+      }
+
+      const codeLines: string[] = [];
+      let contentIndent: number | null = null;
+      while (index < lines.length) {
+        const codeLine = lines[index]!;
+        if (codeLine.trim() === "") {
+          // 本文開始後の空行はコード内部の空行として保持する
+          if (contentIndent !== null) {
+            codeLines.push("");
+          }
+          index += 1;
+          continue;
+        }
+
+        const indent = leadingIndentLength(codeLine);
+        if (indent <= directiveIndent) {
+          // ディレクティブと同じ階層へ戻ったら、コードブロックは終了する
+          break;
+        }
+        contentIndent = contentIndent === null ? indent : Math.min(contentIndent, indent);
+        codeLines.push(codeLine);
+        index += 1;
+      }
+
+      // コード本文の共通インデントだけを除去し、空行末尾は出力へ含めない
+      while (codeLines.length > 0 && codeLines[codeLines.length - 1]!.trim() === "") {
+        codeLines.pop();
+      }
+      if (contentIndent !== null && codeLines.length > 0) {
+        blocks.push(codeLines.map((codeLine) => removeLeadingIndent(codeLine, contentIndent)).join("\n"));
+      }
+      continue;
+    }
+
+    // ReSTディレクティブでない例は、従来どおり空行単位のdoctestとして扱う
     if (line.trim() === "") {
       if (current.length > 0) {
         blocks.push(current.join("\n"));
         current = [];
       }
+      index += 1;
       continue;
     }
     current.push(line.replace(/^\s+/, ""));
+    index += 1;
   }
   if (current.length > 0) {
     blocks.push(current.join("\n"));
   }
   // 中身が無ければ空配列（呼び出し側はスキップ）
   return blocks;
+}
+
+/** 行頭の空白幅を返す。Python docstringではタブを1文字として扱い、除去幅と揃える */
+function leadingIndentLength(line: string): number
+{
+  return line.match(/^[ \t]*/)?.[0].length ?? 0;
+}
+
+/** 行頭から指定文字数のインデントを除去する */
+function removeLeadingIndent(line: string, indent: number): string
+{
+  return line.slice(Math.min(indent, line.length));
 }
 
 /**
@@ -269,9 +336,16 @@ function matchSectionHeader(line: string): SectionName | null
 function dedentDocstring(raw: string): string
 {
   const lines = raw.replace(/\r\n/g, "\n").split("\n");
-  // 空でない行の最小インデントを求める
+  // Pythonのdocstringでは先頭行だけがインラインで始まり、2行目以降に構造インデントが付くことがある
+  const firstContentIndex = lines.findIndex((line) => line.trim() !== "");
+  if (firstContentIndex < 0) {
+    return lines.join("\n");
+  }
+
+  // 先頭の本文行を除く、空でない行の最小インデントを求める
   let minIndent = Infinity;
-  for (const line of lines) {
+  for (let i = firstContentIndex + 1; i < lines.length; i++) {
+    const line = lines[i]!;
     if (line.trim() === "") {
       continue;
     }
@@ -284,7 +358,13 @@ function dedentDocstring(raw: string): string
   if (!Number.isFinite(minIndent) || minIndent === 0) {
     return lines.join("\n");
   }
-  return lines.map((line) => (line.length >= minIndent ? line.slice(minIndent) : line)).join("\n");
+  return lines.map((line, index) => {
+    // 最初の本文行はインラインで始まるため、構造インデントの除去対象から外す
+    if (index <= firstContentIndex) {
+      return line;
+    }
+    return line.length >= minIndent ? line.slice(minIndent) : line;
+  }).join("\n");
 }
 
 /**
@@ -293,6 +373,18 @@ function dedentDocstring(raw: string): string
 function trimBlankEdges(text: string): string
 {
   return text.replace(/^\n+/, "").replace(/\n+$/, "");
+}
+
+/**
+ * ReSTの縦棒付き本文をMarkdownの通常段落として扱える形へ変換する
+ */
+function normalizeRestBodyLines(lines: string[]): string[]
+{
+  return lines.map((line) => {
+    // 「|」で始まるReSTの行ブロックは、先頭のインデントと縦棒を取り除いて本文に戻す
+    const match = line.match(/^[\t ]*\|[\t ]?(.*)$/);
+    return match ? match[1]! : line;
+  });
 }
 
 /**

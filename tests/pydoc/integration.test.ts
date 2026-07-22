@@ -93,12 +93,57 @@ describe("pydoc integration", () => {
     expect(html).toContain("Greeter");
     expect(html).toContain("greet");
     expect(html).toContain("shout");
+    expect(html).toContain(
+      'href="#mypackage.mymodule.greet" data-toc-link data-anchor="mypackage.mymodule.greet">greet</a>'
+    );
+    expect(html).not.toContain(
+      'href="#mypackage.mymodule.greet" data-toc-link data-anchor="mypackage.mymodule.greet">greet(name: str)</a>'
+    );
     // 仕様アンカーIDがHTMLに載ること
     expect(html).toContain('id="mypackage.mymodule.Greeter"');
     expect(html).toContain('id="mypackage.mymodule.greet"');
 
     const page = output.pages.find((p) => p.sourcePath === "api.md");
     expect(page?.anchorIds).toContain("mypackage.mymodule.Greeter");
+  });
+
+  it("パッケージ指定ではモジュールごとにページを分けて階層化する", async () => {
+    const { root, configPath } = createPydocProject({
+      markdown: "# API\n\n::: pydoc mypackage\n",
+      pythonFiles: {
+        "python/mypackage/__init__.py": '"""Package API."""\n',
+        "python/mypackage/first.py": '"""First API."""\n\ndef first() -> None:\n    """First function."""\n',
+        "python/mypackage/nested/__init__.py": '"""Nested API."""\n',
+        "python/mypackage/nested/second.py": '"""Second API."""\n\ndef second() -> None:\n    """Second function."""\n'
+      }
+    });
+
+    const output = await buildSite(
+      (await import("../../src/config/load.js")).loadConfig(configPath),
+      silentLogger(),
+      { strict: false, silentSummary: true }
+    );
+
+    expect(output.pages.map((page) => page.outputPath).sort()).toEqual([
+      "api.html",
+      "api/mypackage/first.html",
+      "api/mypackage/index.html",
+      "api/mypackage/nested/index.html",
+      "api/mypackage/nested/second.html"
+    ]);
+    expect(fs.existsSync(path.join(root, "site/api/mypackage/first.html"))).toBe(true);
+    expect(fs.readFileSync(path.join(root, "site/api.html"), "utf-8")).toContain(
+      "api/mypackage/index.html"
+    );
+    expect(fs.readFileSync(path.join(root, "site/api/mypackage/first.html"), "utf-8")).toContain(
+      "First function."
+    );
+
+    // 生成ページは独立したapiセクションではなく、生成元のAPIページ配下へ表示する
+    const apiNode = output.nav.find((node) => node.url === "api.html");
+    expect(apiNode?.title).toBe("API");
+    expect(apiNode?.children.map((node) => node.title)).toEqual(["mypackage"]);
+    expect(output.nav.some((node) => node.title === "api")).toBe(false);
   });
 
   it("モジュール解決失敗はビルドエラーになる", async () => {

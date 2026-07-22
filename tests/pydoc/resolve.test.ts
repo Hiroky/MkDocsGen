@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { ModuleResolveError, resolvePythonModule } from "../../src/pydoc/resolve.js";
+import { ModuleResolveError, resolvePythonModule, resolvePythonModules } from "../../src/pydoc/resolve.js";
 
 /** 各テストで作った一時ディレクトリの掃除用 */
 const cleanups: Array<() => void> = [];
@@ -90,5 +90,45 @@ describe("resolvePythonModule", () => {
   it("source_dirs が空の場合も探索失敗としてエラーにする", () => {
     // pydoc.source_dirs 未設定でのディレクティブ利用を明確に失敗させる
     expect(() => resolvePythonModule("any.mod", [])).toThrow(ModuleResolveError);
+  });
+});
+
+describe("resolvePythonModules", () => {
+  it("パッケージ配下のPythonモジュールを再帰的かつ辞書順に列挙する", () => {
+    // パッケージ自身、直下のモジュール、ネストしたサブパッケージをまとめて解決する
+    const root = createTempDir();
+    const src = path.join(root, "src");
+    fs.mkdirSync(path.join(src, "mypackage", "nested", "deeper"), { recursive: true });
+    fs.writeFileSync(path.join(src, "mypackage", "__init__.py"), "# package\n", "utf-8");
+    fs.writeFileSync(path.join(src, "mypackage", "z_module.py"), "# z\n", "utf-8");
+    fs.writeFileSync(path.join(src, "mypackage", "a_module.py"), "# a\n", "utf-8");
+    fs.writeFileSync(path.join(src, "mypackage", "nested", "__init__.py"), "# nested\n", "utf-8");
+    fs.writeFileSync(path.join(src, "mypackage", "nested", "b_module.py"), "# b\n", "utf-8");
+    fs.writeFileSync(path.join(src, "mypackage", "nested", "deeper", "c_module.py"), "# c\n", "utf-8");
+    fs.mkdirSync(path.join(src, "mypackage", "__pycache__"));
+    fs.writeFileSync(path.join(src, "mypackage", "__pycache__", "ignored.py"), "# ignored\n", "utf-8");
+
+    const modules = resolvePythonModules("mypackage", [src]);
+
+    expect(modules.map((module) => module.modulePath)).toEqual([
+      "mypackage",
+      "mypackage.a_module",
+      "mypackage.nested",
+      "mypackage.nested.b_module",
+      "mypackage.nested.deeper.c_module",
+      "mypackage.z_module"
+    ]);
+    expect(modules.some((module) => module.modulePath.includes("__pycache__"))).toBe(false);
+  });
+
+  it("単一モジュールを指定した場合は1件だけ返す", () => {
+    // 従来の単一モジュール指定がパッケージ列挙へ変わらないことを保証する
+    const root = createTempDir();
+    const src = path.join(root, "src");
+    fs.mkdirSync(src, { recursive: true });
+    const filePath = path.join(src, "module.py");
+    fs.writeFileSync(filePath, "# module\n", "utf-8");
+
+    expect(resolvePythonModules("module", [src])).toEqual([{ modulePath: "module", filePath }]);
   });
 });

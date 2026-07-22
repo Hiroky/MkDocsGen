@@ -10,13 +10,21 @@ const DEFAULT_OPTIONS: PydocDirectiveOptions = {
   headingLevel: 2
 };
 
+/** pydoc解析で使う改行をLFへ正規化する */
+export function normalizePydocNewlines(markdown: string): string
+{
+  return markdown.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
 /**
  * Markdown全文から ::: pydoc ディレクティブをすべて見つける
  */
 export function findPydocDirectives(markdown: string): PydocDirective[]
 {
   const directives: PydocDirective[] = [];
-  const lines = markdown.split("\n");
+  // CRLF/CRを先にLFへ揃え、行末の\rがディレクティブ判定と置換範囲を壊さないようにする
+  const source = normalizePydocNewlines(markdown);
+  const lines = source.split("\n");
   // 各行の開始文字オフセットを事前計算する（置換範囲の算出に使う）
   const lineStarts: number[] = [];
   let running = 0;

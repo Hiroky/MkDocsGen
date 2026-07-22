@@ -5,7 +5,7 @@
   <ul class="toc-list">
   {% for heading in page.headings %}
     <li class="toc-item toc-item--level-{{ heading.level }}">
-      <a class="toc-link" href="#{{ heading.anchorId }}" data-toc-link data-anchor="{{ heading.anchorId }}">{{ heading.text }}</a>
+      <a class="toc-link" href="#{{ heading.anchorId }}" data-toc-link data-anchor="{{ heading.anchorId }}">{{ heading.tocText or heading.text }}</a>
     </li>
   {% endfor %}
   </ul>

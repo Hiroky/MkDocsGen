@@ -718,8 +718,33 @@ a:hover {
 .page-body h4,
 .page-body h5,
 .page-body h6 {
-  margin: 1.5rem 0 0.5rem;
+  margin: 2rem 0 0.65rem;
+  color: var(--color-text);
   font-size: 1rem;
+}
+
+/* クラス・関数セクションの境界線はPyDocページだけに表示する */
+.page-body.pydoc-page h3,
+.page-body.pydoc-page h4,
+.page-body.pydoc-page h5,
+.page-body.pydoc-page h6 {
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* PyDocのArgs / Returns / Raisesを関数見出しより一段下の補助ラベルとして見せる */
+.page-body.pydoc-page p:has(> strong:only-child) {
+  margin: 1.25rem 0 0.55rem;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.page-body.pydoc-page p:has(> strong:only-child) strong {
+  color: var(--color-accent);
 }
 
 .page-body p {

@@ -33,4 +33,15 @@ describe("theme layout sticky columns", () => {
     expect(toc).toContain("max-height: calc(100vh - var(--header-height))");
     expect(toc).not.toMatch(/(?<!max-)height:\s*calc\(100vh/);
   });
+
+  it("PyDocの関数見出しを下線付きセクションとして表示する", () => {
+    const css = fs.readFileSync(CSS_PATH, "utf-8");
+
+    expect(css).toContain(".page-body h4,");
+    expect(css).toContain(".page-body.pydoc-page h3,");
+    expect(css).toContain(".page-body.pydoc-page h4,");
+    expect(css).toContain("border-bottom: 1px solid var(--color-border)");
+    expect(css).toContain(".page-body.pydoc-page p:has(> strong:only-child)");
+    expect(css).not.toContain(".page-body p:has(> strong:only-child)");
+  });
 });

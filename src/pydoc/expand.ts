@@ -3,16 +3,18 @@ import path from "node:path";
 import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
 import type { Heading } from "../types.js";
-import { findPydocDirectives } from "./directive.js";
+import { findPydocDirectives, normalizePydocNewlines } from "./directive.js";
 import { parsePythonModule } from "./parser.js";
 import { renderModuleDoc, renderSyntaxError } from "./render.js";
-import { resolvePythonModule } from "./resolve.js";
+import { resolvePythonModules } from "./resolve.js";
 import type { PythonParser } from "./tree-sitter.js";
 
 /** expand の戻り値 */
 export interface ExpandPydocResult {
   markdown: string;
   extraHeadings: Heading[];
+  /** ::: pydoc を1つ以上含んでいたか */
+  hasPydoc: boolean;
 }
 
 /**
@@ -25,9 +27,10 @@ export function expandPydocDirectives(
   pythonParser: PythonParser
 ): ExpandPydocResult
 {
-  const directives = findPydocDirectives(markdown);
+  const normalizedMarkdown = normalizePydocNewlines(markdown);
+  const directives = findPydocDirectives(normalizedMarkdown);
   if (directives.length === 0) {
-    return { markdown, extraHeadings: [] };
+    return { markdown, extraHeadings: [], hasPydoc: false };
   }
 
   // source_dirs を設定ファイル基準の絶対パスへ解決する
@@ -36,32 +39,38 @@ export function expandPydocDirectives(
   );
 
   // 後ろから置換してオフセットがずれないようにする
-  let result = markdown;
+  let result = normalizedMarkdown;
   const extraHeadings: Heading[] = [];
   for (let i = directives.length - 1; i >= 0; i--) {
     const directive = directives[i]!;
-    // モジュール解決失敗は resolvePythonModule が ModuleResolveError を投げる
-    const filePath = resolvePythonModule(directive.modulePath, sourceDirsAbs);
-    const source = fs.readFileSync(filePath, "utf-8");
-    const parsed = parsePythonModule(source, directive.modulePath, pythonParser);
-    let replacement: string;
-    if (!parsed.ok) {
-      // 構文エラーは警告してページ上にエラー表示する（strictは警告数で判定）
-      logger.warn(`${parsed.message} (${filePath})`);
-      const rendered = renderSyntaxError(directive.modulePath, parsed.message);
-      replacement = rendered.markdown;
-      // 後ろから処理しているため、見出しは前方へ積む
-      extraHeadings.unshift(...rendered.extraHeadings);
-    } else {
+    // モジュール指定なら1件、パッケージ指定なら配下を再帰的に解決する
+    const modules = resolvePythonModules(directive.modulePath, sourceDirsAbs);
+    const replacements: string[] = [];
+    const directiveHeadings: Heading[] = [];
+    for (const module of modules) {
+      const source = fs.readFileSync(module.filePath, "utf-8");
+      const parsed = parsePythonModule(source, module.modulePath, pythonParser);
+      if (!parsed.ok) {
+        // 構文エラーは警告してページ上にエラー表示する（strictは警告数で判定）
+        logger.warn(`${parsed.message} (${module.filePath})`);
+        const rendered = renderSyntaxError(module.modulePath, parsed.message);
+        replacements.push(rendered.markdown);
+        directiveHeadings.push(...rendered.extraHeadings);
+        continue;
+      }
+
       const rendered = renderModuleDoc(parsed.module, directive.options);
-      replacement = rendered.markdown;
-      extraHeadings.unshift(...rendered.extraHeadings);
+      replacements.push(rendered.markdown);
+      directiveHeadings.push(...rendered.extraHeadings);
     }
 
+    const replacement = replacements.join("\n");
+    // 後ろから処理しているため、見出しは前方へ積む
+    extraHeadings.unshift(...directiveHeadings);
     result = result.slice(0, directive.start) + replacement + result.slice(directive.end);
   }
 
-  return { markdown: result, extraHeadings };
+  return { markdown: result, extraHeadings, hasPydoc: true };
 }
 
 /**
@@ -113,10 +122,14 @@ export function mergePydocHeadings(
 
     if (matchedIndex >= 0) {
       const oldId = nextHeadings[matchedIndex]!.anchorId;
-      nextHeadings[matchedIndex] = {
+      const mergedHeading: Heading = {
         ...nextHeadings[matchedIndex]!,
         anchorId: extra.anchorId
       };
+      if (extra.tocText !== undefined) {
+        mergedHeading.tocText = extra.tocText;
+      }
+      nextHeadings[matchedIndex] = mergedHeading;
       used.add(matchedIndex);
       // 本文HTMLの id も仕様どおりに差し替える（目次クリックとページ内リンクのため）
       nextHtml = replaceHeadingId(nextHtml, oldId, extra.anchorId);
