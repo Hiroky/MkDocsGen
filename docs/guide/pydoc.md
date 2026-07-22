@@ -42,8 +42,7 @@ pydoc:
 
 ## ライブ例
 
-次のブロックはビルド時に `docs/_samples/demo.py` から展開されます。
+次のブロックはビルド時に `docs/_samples/mypackage/` をパッケージとして再帰展開します。配下のモジュール（`greeter` / `utils` / `nested.models` など）は個別ページへ分かれ、この位置には目次が入ります。
 
-::: pydoc demo
-    members: Greeter, shout
-    heading-level: 3
+::: pydoc mypackage
+    heading-level: 2
