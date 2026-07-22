@@ -126,7 +126,9 @@ function wrapCodeBlock(md: MarkdownIt, innerHtml: string, rawCode: string): stri
   // 末尾改行はクリップボード用データから除く
   const forCopy = rawCode.replace(/\n$/, "");
   const escaped = md.utils.escapeHtml(forCopy);
-  return `<div class="code-block"><button type="button" class="code-copy" data-code-copy data-code="${escaped}">Copy</button>${innerHtml}</div>\n`;
+  // Confluence Storage FormatはXML属性の値省略を許さないため、
+  // HTMLでは真偽属性として書けるdata-code-copyにも明示的な値を付ける
+  return `<div class="code-block"><button type="button" class="code-copy" data-code-copy="true" data-code="${escaped}">Copy</button>${innerHtml}</div>\n`;
 }
 
 /**

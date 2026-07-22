@@ -40,9 +40,11 @@ export function taskListPlugin(md: MarkdownIt): void
       // list_item にクラスを付け、チェックボックスHTMLを先頭に差し込む
       token.attrJoin("class", "task-list-item");
       const checkbox = new state.Token("html_inline", "", 0);
+      // XHTML(Confluence Storage Format)は真偽属性の値省略を許さないため、
+      // disabled/checkedは明示的に値を持たせて記述する
       checkbox.content = checked
-        ? '<input type="checkbox" disabled checked> '
-        : '<input type="checkbox" disabled> ';
+        ? '<input type="checkbox" disabled="disabled" checked="checked"> '
+        : '<input type="checkbox" disabled="disabled"> ';
       inline.children.unshift(checkbox);
     }
   });

@@ -10,6 +10,8 @@ describe("コードブロック / Shiki / Mermaid", () => {
 
     expect(html).toContain('class="code-block"');
     expect(html).toContain("data-code-copy");
+    expect(html).toContain('data-code-copy="true"');
+    expect(html).not.toContain("data-code-copy data-code=");
     expect(html).toContain("shiki");
     expect(html).toContain("--shiki-");
     expect(html).toContain("const");

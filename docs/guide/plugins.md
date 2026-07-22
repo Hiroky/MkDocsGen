@@ -38,6 +38,14 @@ plugins:
 
 環境変数はシェルで `export` する他、`mkdocsgen.yml` と同じフォルダに `.env` を置いても `build` / `serve` の両方で自動的に読み込まれます（既にシェルで設定済みの環境変数がある場合はそちらが優先され、`.env` の値では上書きされません）。
 
+ページの更新対象はタイトルではなく、ページに保存する `mkdocsgen-source-key` プロパティで判定します。同じタイトルの別ページや、このプロパティを持たない既存ページは上書きしません。同名ページがある場合は、まず親階層を付けたタイトル（例: `Setup（Guide）`）、それでも衝突する場合はソースパスを付けたタイトル（例: `Setup（guide/setup.md）`）で新規作成します。作成後はそのタイトルをsourceKeyと組み合わせて再利用するため、次回以降は同じページを更新できます。
+
+本文と `toctree` のページ間相対リンクは、全ページのConfluenceページID確定後に `pages/viewpage.action?pageId=...` 形式へ変換します。見出しアンカー（`#section`）も保持されます。画像は従来どおりConfluence添付ファイル参照へ変換されます。
+
+生成後のStorage Format本文全体のSHA-256をConfluenceのコンテンツプロパティへ保存し、次回の生成結果と一致するページはページ本文の更新API（PUT）をスキップします。Confluence保存時のHTML正規化による見かけ上の差分に影響されず、変更のないページではバージョンを増やしません。
+
+ローカル画像はSHA-256ハッシュをコンテンツプロパティへ保存し、補助情報としてStorage Formatの管理用コメントにも埋め込みます。Confluence側のハッシュと一致する画像は添付ファイルの更新もスキップし、ハッシュが無い既存ページは初回同期時にアップロードして管理情報を付与します。ログにはページごとに `created` / `updated` / `skipped` と画像のアップロード・スキップ数を表示します。
+
 ### homeAsRoot（ホームを親ページにする）
 
 既定では、ナビのトップレベル項目（Home / Guide / API 等）は全て `parentPageId`（未指定ならスペース直下）の直接の子として並列に登録されます。`options.homeAsRoot: true` を指定すると、ルートインデックス（`docs/index.md` → ナビの "Home"）を実際の親ページとして扱い、他のトップレベル項目をその子としてぶら下げます。
@@ -48,9 +56,12 @@ plugins:
     options:
       space: DOCS
       homeAsRoot: true   # HomeをConfluence上の親ページにする
+      rootPageTitle: "My Product Documentation"  # Confluence上のindex.mdのタイトル
 ```
 
 ホーム（`docs/index.md`）が存在しない場合は、`homeAsRoot: true` を指定していても例外にはならず、既定のフラットな構成にフォールバックします。
+
+`options.rootPageTitle` を指定すると、Confluenceへエクスポートするルートページ（`docs/index.md`）のタイトルだけを上書きできます。サイト側のナビゲーション名やMarkdownのfrontmatter titleは変更されません。未指定時は従来どおりルートページのタイトルを使用します。
 
 ## 独自プラグインの書き方
 
