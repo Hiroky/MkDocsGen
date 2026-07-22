@@ -21,7 +21,7 @@
     "dev": "tsx src/cli/index.ts",
     "build": "tsc -p tsconfig.json && npm run build:theme && npm run build:shiki",
     "build:theme": "esbuild templates/assets/main.js --minify --outfile=build-theme/main.js && esbuild templates/assets/main.css --minify --outfile=build-theme/main.css",
-    "build:shiki": "esbuild dist/markdown/highlight.js --bundle --platform=node --format=esm --minify --outfile=dist/markdown/highlight.bundle.js && mv dist/markdown/highlight.bundle.js dist/markdown/highlight.js",
+    "build:shiki": "tsx scripts/build-shiki.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
