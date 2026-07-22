@@ -93,10 +93,10 @@ plugins:
       dryRun: true             # まずtrueで計画だけ確認
 ```
 
-`url` / `username` / `space` / `parentPageId` はYAMLの `options` と環境変数（`CONFLUENCE_URL` / `CONFLUENCE_USERNAME` / `CONFLUENCE_SPACE` / `CONFLUENCE_PARENT_PAGE_ID`）のどちらでも指定でき、両方あれば環境変数が優先されます。`password` だけはYAMLに書けず、`CONFLUENCE_PASSWORD` 環境変数専用です。シェルで `export` するほか、`docs_dir`（既定は `docs/`）直下に `.env` を置いても自動で読み込まれます（`build` / `serve` 共通。既にシェルでexport済みの環境変数がある場合はそちらが優先されます）。
+`url` / `username` / `space` / `parentPageId` はYAMLの `options` と環境変数（`CONFLUENCE_URL` / `CONFLUENCE_USERNAME` / `CONFLUENCE_SPACE` / `CONFLUENCE_PARENT_PAGE_ID`）のどちらでも指定でき、両方あれば環境変数が優先されます。`password` だけはYAMLに書けず、`CONFLUENCE_PASSWORD` 環境変数専用です。シェルで `export` するほか、`mkdocsgen.yml` と同じフォルダに `.env` を置いても自動で読み込まれます（`build` / `serve` 共通。既にシェルでexport済みの環境変数がある場合はそちらが優先されます）。
 
 ```bash
-# docs/.env
+# .env（mkdocsgen.ymlと同じフォルダ）
 CONFLUENCE_URL=https://example.atlassian.net/wiki
 CONFLUENCE_USERNAME=alice
 CONFLUENCE_PASSWORD=...

@@ -77,14 +77,16 @@ describe("runBuild", () => {
     delete process.env.MKDOCSGEN_TEST_EXISTING;
   });
 
-  it("docs_dir/.envの値をprocess.envへ反映する（既存envは上書きしない）", async () => {
+  it("mkdocsgen.ymlと同じフォルダの.envの値をprocess.envへ反映する（既存envは上書きしない）", async () => {
     process.env.MKDOCSGEN_TEST_EXISTING = "from-shell";
-    const { configPath } = createBuildProject({
-      files: {
-        "index.md": "# Home\n",
-        ".env": "MKDOCSGEN_TEST_DOTENV=from-dotenv\nMKDOCSGEN_TEST_EXISTING=from-dotenv\n"
-      }
+    const { root, configPath } = createBuildProject({
+      files: { "index.md": "# Home\n" }
     });
+    fs.writeFileSync(
+      path.join(root, ".env"),
+      "MKDOCSGEN_TEST_DOTENV=from-dotenv\nMKDOCSGEN_TEST_EXISTING=from-dotenv\n",
+      "utf-8"
+    );
     const { logger } = capturingInfoLogger();
 
     await runBuild({ configPath, strict: false, clean: false, verbose: false }, logger);

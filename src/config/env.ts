@@ -21,7 +21,8 @@ export function parseEnvFile(content: string): Record<string, string>
       continue;
     }
 
-    const key = line.slice(0, eqIndex).trim();
+    // シェルの`export KEY=value`をそのまま貼り付けても読めるよう、先頭のexportは許容する
+    const key = line.slice(0, eqIndex).trim().replace(/^export\s+/, "");
     if (key === "") {
       continue;
     }
@@ -41,12 +42,12 @@ export function parseEnvFile(content: string): Record<string, string>
 }
 
 /**
- * docs_dir配下の.envを読み、未設定のprocess.envキーにのみ反映する
+ * mkdocsgen.ymlと同じディレクトリの.envを読み、未設定のprocess.envキーにのみ反映する
  * （シェルでexport済みの環境変数を優先し、上書きしない）
  */
-export function loadDocsEnv(docsDirAbs: string): string[]
+export function loadProjectEnv(configDir: string): string[]
 {
-  const envPath = path.join(docsDirAbs, ".env");
+  const envPath = path.join(configDir, ".env");
   // .envは任意ファイルのため、無ければ何もせず静かに続行する
   if (!fs.existsSync(envPath)) {
     return [];

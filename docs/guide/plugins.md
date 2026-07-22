@@ -36,7 +36,7 @@ plugins:
 
 `builtin: confluence-export` で有効化できます。`url` / `username` / `space` / `parentPageId` はYAMLの `options` と環境変数（`CONFLUENCE_URL` / `CONFLUENCE_USERNAME` / `CONFLUENCE_SPACE` / `CONFLUENCE_PARENT_PAGE_ID`）のどちらでも指定でき、両方あれば環境変数が優先されます。`password` だけはYAMLに書けず、`CONFLUENCE_PASSWORD` 環境変数専用です（秘密情報の誤コミット防止）。
 
-環境変数はシェルで `export` する他、`docs_dir` 直下に `.env` を置いても `build` / `serve` の両方で自動的に読み込まれます（既にシェルで設定済みの環境変数がある場合はそちらが優先され、`.env` の値では上書きされません）。
+環境変数はシェルで `export` する他、`mkdocsgen.yml` と同じフォルダに `.env` を置いても `build` / `serve` の両方で自動的に読み込まれます（既にシェルで設定済みの環境変数がある場合はそちらが優先され、`.env` の値では上書きされません）。
 
 ### homeAsRoot（ホームを親ページにする）
 

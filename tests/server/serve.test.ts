@@ -19,12 +19,12 @@ afterEach(async () => {
 });
 
 describe("runServe", () => {
-  it("docs_dir/.envの値をprocess.envへ反映する", async () => {
-    // 仕様: build同様、serveの初回ビルド時もdocs_dir/.envを読み込む
+  it("mkdocsgen.ymlと同じフォルダの.envの値をprocess.envへ反映する", async () => {
+    // 仕様: build同様、serveの初回ビルド時もmkdocsgen.ymlと同じフォルダの.envを読み込む
     const { runServe } = await import("../../src/server/serve.js");
     const root = createTempProject();
     fs.writeFileSync(
-      path.join(root, "docs", ".env"),
+      path.join(root, ".env"),
       "MKDOCSGEN_TEST_SERVE_DOTENV=from-dotenv\n",
       "utf-8"
     );

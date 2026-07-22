@@ -9,7 +9,7 @@ import type { Plugin, PluginFactory } from "../types.js";
  *
  * url / username / space / parentPageId は mkdocsgen.yml の options か
  * 環境変数のどちらでも指定できる（両方指定時は環境変数を優先）。
- * password のみ環境変数（または docs_dir/.env）からしか読まない。YAMLには書けない:
+ * password のみ環境変数（またはmkdocsgen.ymlと同じフォルダの.env）からしか読まない。YAMLには書けない:
  *   CONFLUENCE_URL             … 例: https://example.atlassian.net/wiki
  *   CONFLUENCE_USERNAME        … Basic認証のユーザー名
  *   CONFLUENCE_PASSWORD        … Basic認証のパスワード（YAML不可、env専用）
@@ -64,7 +64,7 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
   if (options.password !== undefined) {
     throw new Error(
       "options.password はYAMLに書けません。" +
-      " CONFLUENCE_PASSWORD 環境変数（または docs_dir/.env）で指定してください"
+      " CONFLUENCE_PASSWORD 環境変数（またはmkdocsgen.ymlと同じフォルダの.env）で指定してください"
     );
   }
 
