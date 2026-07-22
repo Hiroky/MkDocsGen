@@ -87,6 +87,37 @@ describe("loadConfig", () => {
     }
   });
 
+  it("plugins.builtinのみの指定は正常にパースされる", () => {
+    // 組み込みプラグインはpath無しでbuiltin名だけ指定できる
+    const config = loadConfig(fixture("plugin-builtin.yml"));
+
+    expect(config.plugins).toEqual([
+      { builtin: "confluence-export", options: { space: "DOCS", dryRun: true } }
+    ]);
+  });
+
+  it("plugins.pathとbuiltinを両方指定するとConfigErrorになる", () => {
+    // 排他のはずの2項目が両方あるのは設定ミスとして拒否する
+    expect(() => loadConfig(fixture("plugin-path-and-builtin.yml"))).toThrow(ConfigError);
+    try {
+      loadConfig(fixture("plugin-path-and-builtin.yml"));
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConfigError);
+      expect((error as ConfigError).message).toContain("path と builtin のどちらか一方だけ");
+    }
+  });
+
+  it("plugins.pathもbuiltinも無いとConfigErrorになる", () => {
+    // どちらも無いとプラグインの実体を解決できない
+    expect(() => loadConfig(fixture("plugin-missing-source.yml"))).toThrow(ConfigError);
+    try {
+      loadConfig(fixture("plugin-missing-source.yml"));
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConfigError);
+      expect((error as ConfigError).message).toContain("path と builtin のどちらか一方だけ");
+    }
+  });
+
   it("型不一致は該当キーと期待型を含むConfigErrorになる", () => {
     // 仕様書2.8: スキーマ違反（型不一致）はキーと期待型を表示する
     expect(() => loadConfig(fixture("type-mismatch.yml"))).toThrow(ConfigError);

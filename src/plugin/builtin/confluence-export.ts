@@ -1,30 +1,77 @@
+import type { NavNode, Page } from "../../types.js";
+import type { Plugin, PluginFactory } from "../types.js";
+
 /**
- * Confluenceエクスポート参考実装（コアのテスト対象外）
+ * Confluenceエクスポート組み込みプラグイン
  *
  * buildEndフックでBuildContextから全ページHTMLとナビ階層を受け取り、
- * Confluence REST API（Storage Format）へページを作成/更新する想定の骨格。
+ * Confluence REST API（Storage Format、Basic認証）へページを作成/更新する。
  *
- * 認証情報は環境変数からのみ読み、YAMLには書かない:
- *   CONFLUENCE_BASE_URL  … 例: https://example.atlassian.net/wiki
- *   CONFLUENCE_EMAIL     … APIトークンに紐づくメール
- *   CONFLUENCE_API_TOKEN … Atlassian APIトークン
+ * url / username / space / parentPageId は mkdocsgen.yml の options か
+ * 環境変数のどちらでも指定できる（両方指定時は環境変数を優先）。
+ * password のみ環境変数（または docs_dir/.env）からしか読まない。YAMLには書けない:
+ *   CONFLUENCE_URL             … 例: https://example.atlassian.net/wiki
+ *   CONFLUENCE_USERNAME        … Basic認証のユーザー名
+ *   CONFLUENCE_PASSWORD        … Basic認証のパスワード（YAML不可、env専用）
+ *   CONFLUENCE_SPACE           … スペースキー（任意。options.spaceでも可）
+ *   CONFLUENCE_PARENT_PAGE_ID  … ルートの親ページID（任意。options.parentPageIdでも可）
  *
  * mkdocsgen.yml 例:
  *   plugins:
- *     - path: ./examples/plugins/confluence-export.mjs
+ *     - builtin: confluence-export
  *       options:
+ *         url: https://example.atlassian.net/wiki   # 任意。envが無ければこちらを使う
+ *         username: alice                            # 任意。envが無ければこちらを使う
  *         space: DOCS
  *         parentPageId: "123456"   # 任意。ルートの親ページID
- *         dryRun: true            # trueならAPIを呼ばずログのみ
+ *         dryRun: true             # trueならAPIを呼ばずログのみ
  */
 
+/** エクスポート計画1件（ナビノード1つに対応） */
+interface PlanItem {
+  key: string;
+  parentKey: string | null;
+  title: string;
+  url: string | null;
+}
+
+/** Confluence REST APIのレスポンス（使用するフィールドのみ） */
+interface ConfluenceApiResponse {
+  id?: string;
+  version?: { number?: number };
+  results?: Array<{ id: string; version?: { number?: number } }>;
+}
+
 /**
- * プラグインファクトリ（MkDocsGenがdefault exportとして呼び出す）
+ * 環境変数優先でオプション値を解決する。どちらも無ければnull
  */
-export default function createConfluenceExportPlugin(options = {})
+function resolveSetting(envValue: string | undefined, optionValue: unknown): string | null
 {
-  const space = typeof options.space === "string" ? options.space : "";
-  const parentPageId = typeof options.parentPageId === "string" ? options.parentPageId : null;
+  if (typeof envValue === "string" && envValue !== "") {
+    return envValue;
+  }
+  if (typeof optionValue === "string" && optionValue !== "") {
+    return optionValue;
+  }
+  return null;
+}
+
+/**
+ * プラグインファクトリ
+ */
+export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => {
+  // passwordはYAMLに書けない（秘密情報の誤コミット防止）。env専用
+  if (options.password !== undefined) {
+    throw new Error(
+      "options.password はYAMLに書けません。" +
+      " CONFLUENCE_PASSWORD 環境変数（または docs_dir/.env）で指定してください"
+    );
+  }
+
+  const url = (resolveSetting(process.env.CONFLUENCE_URL, options.url) ?? "").replace(/\/$/, "");
+  const username = resolveSetting(process.env.CONFLUENCE_USERNAME, options.username);
+  const space = resolveSetting(process.env.CONFLUENCE_SPACE, options.space) ?? "";
+  const parentPageId = resolveSetting(process.env.CONFLUENCE_PARENT_PAGE_ID, options.parentPageId);
   const dryRun = options.dryRun === true;
 
   return {
@@ -37,24 +84,27 @@ export default function createConfluenceExportPlugin(options = {})
     {
       // 必須オプションの検証
       if (!space) {
-        throw new Error("options.space が未設定です（Confluenceスペースキーを指定してください）");
+        throw new Error("space が未設定です（options.space か CONFLUENCE_SPACE でスペースキーを指定してください）");
       }
 
-      // 認証は環境変数のみ（YAMLへ書かない）
-      const baseUrl = (process.env.CONFLUENCE_BASE_URL ?? "").replace(/\/$/, "");
-      const email = process.env.CONFLUENCE_EMAIL ?? "";
-      const apiToken = process.env.CONFLUENCE_API_TOKEN ?? "";
+      // passwordはbuildEnd実行時点の環境変数から読む（YAML不可）
+      const password = process.env.CONFLUENCE_PASSWORD ?? null;
 
-      if (!dryRun && (!baseUrl || !email || !apiToken)) {
-        throw new Error(
-          "Confluence認証情報が不足しています。" +
-          " CONFLUENCE_BASE_URL / CONFLUENCE_EMAIL / CONFLUENCE_API_TOKEN を設定するか、" +
-          " options.dryRun: true で試してください"
-        );
+      if (!dryRun) {
+        const missing: string[] = [];
+        if (!url) missing.push("url (options.url / CONFLUENCE_URL)");
+        if (!username) missing.push("username (options.username / CONFLUENCE_USERNAME)");
+        if (!password) missing.push("password (CONFLUENCE_PASSWORD)");
+        if (missing.length > 0) {
+          throw new Error(
+            `Confluence認証情報が不足しています: ${missing.join(", ")}` +
+            "。dryRun: true で試すこともできます"
+          );
+        }
       }
 
       // ナビ階層を辿り、親子関係付きのエクスポート計画を作る
-      const plan = buildExportPlan(context.nav, context.pages, parentPageId);
+      const plan = buildExportPlan(context.nav, context.pages);
       console.info(
         `[confluence-export] space=${space} pages=${plan.length}` +
         ` dryRun=${dryRun} parentPageId=${parentPageId ?? "(none)"}`
@@ -72,22 +122,22 @@ export default function createConfluenceExportPlugin(options = {})
       }
 
       // 実際のAPI呼び出し（参考実装のため最小限の骨格）
-      const authHeader = "Basic " + Buffer.from(`${email}:${apiToken}`).toString("base64");
+      const authHeader = "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
       /** 計画キー → 作成済みConfluenceページID */
-      const createdIds = new Map();
+      const createdIds = new Map<string, string>();
 
       for (const item of plan) {
         // セクション（url無し）は本文なしの親ページとして作る
         const page = item.url
           ? context.pages.find((p) => p.url === item.url)
-          : null;
+          : undefined;
         const bodyHtml = page ? page.contentHtml : `<p>${escapeHtml(item.title)}</p>`;
         const parentId = item.parentKey
           ? createdIds.get(item.parentKey) ?? parentPageId
           : parentPageId;
 
         const pageId = await upsertConfluencePage({
-          baseUrl,
+          baseUrl: url,
           authHeader,
           space,
           title: item.title,
@@ -99,20 +149,20 @@ export default function createConfluenceExportPlugin(options = {})
       }
     }
   };
-}
+};
 
 /**
  * ナビツリーを深さ優先で走査し、親子キー付きのエクスポート計画を作る
  */
-function buildExportPlan(nav, pages, _rootParentId)
+function buildExportPlan(nav: NavNode[], pages: Page[]): PlanItem[]
 {
-  const plan = [];
+  const plan: PlanItem[] = [];
   let seq = 0;
 
   /**
    * ノードを再帰的に計画へ追加する
    */
-  function walk(nodes, parentKey)
+  function walk(nodes: NavNode[], parentKey: string | null): void
   {
     for (const node of nodes) {
       const key = `n${seq++}`;
@@ -122,7 +172,7 @@ function buildExportPlan(nav, pages, _rootParentId)
         title: node.title,
         url: node.url
       });
-      if (node.children && node.children.length > 0) {
+      if (node.children.length > 0) {
         walk(node.children, key);
       }
     }
@@ -131,7 +181,7 @@ function buildExportPlan(nav, pages, _rootParentId)
   walk(nav, null);
 
   // ナビに載らない孤立ページがあれば末尾に追加する（保険）
-  const plannedUrls = new Set(plan.map((item) => item.url).filter(Boolean));
+  const plannedUrls = new Set(plan.map((item) => item.url).filter((url): url is string => url !== null));
   for (const page of pages) {
     if (plannedUrls.has(page.url)) {
       continue;
@@ -150,15 +200,17 @@ function buildExportPlan(nav, pages, _rootParentId)
 /**
  * Confluenceページをタイトルで検索し、あれば更新・なければ作成する
  */
-async function upsertConfluencePage({
-  baseUrl,
-  authHeader,
-  space,
-  title,
-  bodyHtml,
-  parentId
-})
+async function upsertConfluencePage(args: {
+  baseUrl: string;
+  authHeader: string;
+  space: string;
+  title: string;
+  bodyHtml: string;
+  parentId: string | null;
+}): Promise<string>
 {
+  const { baseUrl, authHeader, space, title, bodyHtml, parentId } = args;
+
   // 同名ページをスペース内で探す
   const searchUrl =
     `${baseUrl}/rest/api/content` +
@@ -190,7 +242,7 @@ async function upsertConfluencePage({
       method: "PUT",
       body: JSON.stringify(payload)
     });
-    return updated.id;
+    return updated.id ?? "";
   }
 
   // 新規作成。親ページがあればancestorsに載せる
@@ -205,13 +257,17 @@ async function upsertConfluencePage({
     method: "POST",
     body: JSON.stringify(payload)
   });
-  return created.id;
+  return created.id ?? "";
 }
 
 /**
  * Confluence REST APIへJSONリクエストを送る
  */
-async function confluenceFetch(url, authHeader, init = {})
+async function confluenceFetch(
+  url: string,
+  authHeader: string,
+  init: RequestInit = {}
+): Promise<ConfluenceApiResponse>
 {
   const response = await fetch(url, {
     ...init,
@@ -226,15 +282,15 @@ async function confluenceFetch(url, authHeader, init = {})
     const text = await response.text();
     throw new Error(`Confluence API ${response.status}: ${text}`);
   }
-  return response.json();
+  return response.json() as Promise<ConfluenceApiResponse>;
 }
 
 /**
  * HTMLテキスト用に特殊文字をエスケープする
  */
-function escapeHtml(text)
+function escapeHtml(text: string): string
 {
-  return String(text)
+  return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")

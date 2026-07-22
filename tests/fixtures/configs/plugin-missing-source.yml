@@ -1,0 +1,5 @@
+site:
+  title: Plugin Missing Source Site
+plugins:
+  - options:
+      space: DOCS

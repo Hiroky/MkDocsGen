@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { loadDocsEnv } from "../config/env.js";
 import { loadConfig } from "../config/load.js";
 import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
@@ -78,6 +79,12 @@ export async function runBuild(options: BuildOptions, logger: Logger): Promise<B
   // 設定を読み込む（失敗時はConfigErrorがそのまま上へ伝播しCLIが表示する）
   const config = loadConfig(options.configPath);
   logger.debug(`設定を読み込みました: ${config.configPath}`);
+
+  // docs_dir/.env があれば読み込む（プラグインより前・シェルのenvは上書きしない）
+  const loadedEnvKeys = loadDocsEnv(config.docsDirAbs);
+  if (loadedEnvKeys.length > 0) {
+    logger.debug(`docs_dir/.envから環境変数を読み込みました: ${loadedEnvKeys.join(", ")}`);
+  }
 
   // --clean指定時は出力ディレクトリを空にする
   if (options.clean) {

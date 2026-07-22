@@ -1,0 +1,7 @@
+site:
+  title: Plugin Builtin Site
+plugins:
+  - builtin: confluence-export
+    options:
+      space: DOCS
+      dryRun: true

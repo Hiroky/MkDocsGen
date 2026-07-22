@@ -1,33 +1,41 @@
 # Plugin Examples
 
-MkDocsGenのプラグイン参考実装です。コアのテスト対象外です。
+MkDocsGenの独自プラグインの書き方を示すディレクトリです。
 
-## confluence-export.mjs
-
-`buildEnd` フックでナビ階層とページHTMLをConfluence REST APIへ同期する骨格実装です。
-
-### 使い方
-
-1. プロジェクトにプラグインをコピーするか、パスで参照する
-2. `mkdocsgen.yml` に追加する:
+Confluenceエクスポートは組み込みプラグインとしてパッケージに同梱されています。`examples/plugins/confluence-export.mjs` のようなファイルをパスで参照する必要はなく、`mkdocsgen.yml` に次のように書くだけで有効化できます。
 
 ```yaml
 plugins:
-  - path: ./examples/plugins/confluence-export.mjs
+  - builtin: confluence-export
     options:
       space: DOCS
-      parentPageId: "123456"   # 任意
-      dryRun: true             # まずtrueで計画だけ確認
+      dryRun: true
 ```
 
-3. 認証情報を環境変数で渡す（YAMLには書かない）:
+設定項目（`url` / `username` / `password` / `space` / `parentPageId`）や環境変数（`CONFLUENCE_URL` 等）の詳細は [docs/guide/plugins.md](../../docs/guide/plugins.md) を参照してください。
 
-```bash
-export CONFLUENCE_BASE_URL="https://example.atlassian.net/wiki"
-export CONFLUENCE_EMAIL="you@example.com"
-export CONFLUENCE_API_TOKEN="..."
+## 独自プラグインを書く場合
+
+`plugins` に `path` でローカルESMファイルを指定すると、同じフック（`configResolved` / `transformMarkdown` / `transformHtml` / `buildEnd`）を使った独自プラグインを追加できます。
+
+```javascript
+export default function createPlugin(options = {}) {
+  return {
+    name: "my-plugin",
+    async transformHtml(html, page) {
+      return html;
+    },
+    async buildEnd(context) {
+      // context.pages / context.nav などを利用
+    }
+  };
+}
 ```
 
-4. `mkdocsgen build` を実行する
+```yaml
+plugins:
+  - path: ./plugins/my-plugin.mjs
+    options: {}
+```
 
-`dryRun: true` のときはAPIを呼ばず、エクスポート計画のみをログ出力します。
+フック一覧やタイミングは [docs/guide/plugins.md](../../docs/guide/plugins.md) を参照してください。

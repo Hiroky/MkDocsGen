@@ -3,16 +3,20 @@ title: プラグイン
 order: 7
 ---
 
-ローカルの ESM ファイルを `plugins` に列挙すると、ビルドライフサイクルへ処理を差し込めます。
+`plugins` にはローカルの ESM ファイル（`path`）か、パッケージに同梱された組み込みプラグイン（`builtin`）のどちらかを列挙すると、ビルドライフサイクルへ処理を差し込めます。`path` と `builtin` は同一エントリに両方書けません（どちらか一方のみ）。
 
 ## 設定例
 
 ```yaml
 plugins:
-  - path: ./examples/plugins/confluence-export.mjs
+  # 組み込みプラグイン（npm installしただけの環境でも動く）
+  - builtin: confluence-export
     options:
       space: DOCS
       dryRun: true
+  # 独自のローカルESMファイル
+  - path: ./plugins/my-plugin.mjs
+    options: {}
 ```
 
 `options` はプラグインファクトリの引数として渡されます。
@@ -28,9 +32,13 @@ plugins:
 
 列挙順に直列実行されます。フック内で例外が投げられると、プラグイン名とスタック付きでビルドが失敗します。
 
-## 参考実装
+## 組み込みプラグイン: confluence-export
 
-Confluence エクスポートの骨格はリポジトリの `examples/plugins/confluence-export.mjs` にあります。認証情報は環境変数のみを使い、YAML には書きません。
+`builtin: confluence-export` で有効化できます。`url` / `username` / `space` / `parentPageId` はYAMLの `options` と環境変数（`CONFLUENCE_URL` / `CONFLUENCE_USERNAME` / `CONFLUENCE_SPACE` / `CONFLUENCE_PARENT_PAGE_ID`）のどちらでも指定でき、両方あれば環境変数が優先されます。`password` だけはYAMLに書けず、`CONFLUENCE_PASSWORD` 環境変数専用です（秘密情報の誤コミット防止）。
+
+環境変数はシェルで `export` する他、`docs_dir` 直下に `.env` を置いても `build` / `serve` の両方で自動的に読み込まれます（既にシェルで設定済みの環境変数がある場合はそちらが優先され、`.env` の値では上書きされません）。
+
+## 独自プラグインの書き方
 
 ```javascript
 export default function createPlugin(options = {}) {

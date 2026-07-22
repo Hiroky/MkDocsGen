@@ -38,6 +38,22 @@ const serveSchema = z.object({
 }).strict();
 
 /**
+ * プラグイン1件のスキーマ。外部ファイル(path)か組み込みプラグイン(builtin)の
+ * どちらか一方だけを指定する
+ */
+const pluginEntrySchema = z.object({
+  path: z.string().optional(),
+  builtin: z.string().optional(),
+  options: z.record(z.string(), z.unknown()).default({})
+}).strict().superRefine((entry, ctx) => {
+  const hasPath = entry.path !== undefined;
+  const hasBuiltin = entry.builtin !== undefined;
+  if (hasPath === hasBuiltin) {
+    ctx.addIssue({ code: "custom", message: "path と builtin のどちらか一方だけを指定してください" });
+  }
+});
+
+/**
  * mkdocsgen.ymlの生スキーマ。未知キーはstrictで拒否する
  */
 export const rawConfigSchema = z.object({
@@ -59,10 +75,7 @@ export const rawConfigSchema = z.object({
   theme: withObjectDefaults(themeSchema),
   markdown: withObjectDefaults(markdownSchema),
   pydoc: withObjectDefaults(pydocSchema),
-  plugins: z.array(z.object({
-    path: z.string(),
-    options: z.record(z.string(), z.unknown()).default({})
-  }).strict()).default([]),
+  plugins: z.array(pluginEntrySchema).default([]),
   serve: withObjectDefaults(serveSchema)
 }).strict();
 

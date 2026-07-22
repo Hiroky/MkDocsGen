@@ -1,0 +1,5 @@
+site:
+  title: Plugin Conflict Site
+plugins:
+  - path: ./plugins/custom.mjs
+    builtin: confluence-export

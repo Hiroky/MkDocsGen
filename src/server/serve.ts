@@ -1,4 +1,5 @@
 import path from "node:path";
+import { loadDocsEnv } from "../config/env.js";
 import { loadConfig, ConfigError } from "../config/load.js";
 import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
@@ -32,6 +33,8 @@ export async function runServe(options: ServeOptions, logger: Logger): Promise<S
 {
   // 初回は設定読込とフルビルドを同期的に成功させる（失敗時は起動しない）
   let config = loadConfig(options.configPath);
+  // docs_dir/.env があれば読み込む（プラグインより前・シェルのenvは上書きしない）
+  loadDocsEnv(config.docsDirAbs);
   logger.info("初回ビルドを実行しています...");
   let state: DevBuildState = await fullBuild(config, logger);
 
@@ -65,6 +68,7 @@ export async function runServe(options: ServeOptions, logger: Logger): Promise<S
       if (hasConfig) {
         logger.info("設定ファイルの変更を検出したためフルビルドします");
         config = loadConfig(options.configPath);
+        loadDocsEnv(config.docsDirAbs);
         state = await fullBuild(config, logger);
         // 監視対象パスが変わった可能性があるためウォッチャを張り直す
         await watcher.close();

@@ -72,6 +72,27 @@ function capturingInfoLogger(): { logger: Logger; infos: string[]; warnings: str
 }
 
 describe("runBuild", () => {
+  afterEach(() => {
+    delete process.env.MKDOCSGEN_TEST_DOTENV;
+    delete process.env.MKDOCSGEN_TEST_EXISTING;
+  });
+
+  it("docs_dir/.envの値をprocess.envへ反映する（既存envは上書きしない）", async () => {
+    process.env.MKDOCSGEN_TEST_EXISTING = "from-shell";
+    const { configPath } = createBuildProject({
+      files: {
+        "index.md": "# Home\n",
+        ".env": "MKDOCSGEN_TEST_DOTENV=from-dotenv\nMKDOCSGEN_TEST_EXISTING=from-dotenv\n"
+      }
+    });
+    const { logger } = capturingInfoLogger();
+
+    await runBuild({ configPath, strict: false, clean: false, verbose: false }, logger);
+
+    expect(process.env.MKDOCSGEN_TEST_DOTENV).toBe("from-dotenv");
+    expect(process.env.MKDOCSGEN_TEST_EXISTING).toBe("from-shell");
+  });
+
   it("正常ビルドでHTMLを出力しサマリを返す", async () => {
     // ページ数・警告数・所要時間が結果とログに出る
     const { configPath } = createBuildProject({

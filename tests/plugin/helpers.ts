@@ -7,7 +7,7 @@ import type { ResolvedConfig } from "../../src/config/schema.js";
  * プラグイン用の一時ディレクトリと最小ResolvedConfigを作る
  */
 export function createPluginFixture(options: {
-  plugins?: Array<{ path: string; options?: Record<string, unknown> }>;
+  plugins?: Array<{ path?: string; builtin?: string; options?: Record<string, unknown> }>;
   pluginFiles?: Record<string, string>;
 } = {}): { root: string; config: ResolvedConfig; cleanup: () => void }
 {
@@ -32,7 +32,8 @@ export function createPluginFixture(options: {
     markdown: { allow_html: true, breaks: true },
     pydoc: { source_dirs: [] },
     plugins: (options.plugins ?? []).map((entry) => ({
-      path: entry.path,
+      ...(entry.path !== undefined ? { path: entry.path } : {}),
+      ...(entry.builtin !== undefined ? { builtin: entry.builtin } : {}),
       options: entry.options ?? {}
     })),
     serve: { port: 3000 },

@@ -78,6 +78,32 @@ site:
   title: My Docs
 ```
 
+## プラグイン（組み込み: Confluenceエクスポート）
+
+`mkdocsgen.yml` の `plugins` にはローカルESMファイル（`path`）のほか、パッケージに同梱された組み込みプラグイン（`builtin`）を列挙できます。Confluenceへのエクスポートは `confluence-export` という組み込みプラグインとして提供されており、`npm install` しただけの環境でも `path` でファイルを指す必要はありません。
+
+```yaml
+plugins:
+  - builtin: confluence-export
+    options:
+      url: https://example.atlassian.net/wiki   # 任意。envが無ければこちらを使う
+      username: alice                            # 任意。envが無ければこちらを使う
+      space: DOCS
+      parentPageId: "123456"   # 任意
+      dryRun: true             # まずtrueで計画だけ確認
+```
+
+`url` / `username` / `space` / `parentPageId` はYAMLの `options` と環境変数（`CONFLUENCE_URL` / `CONFLUENCE_USERNAME` / `CONFLUENCE_SPACE` / `CONFLUENCE_PARENT_PAGE_ID`）のどちらでも指定でき、両方あれば環境変数が優先されます。`password` だけはYAMLに書けず、`CONFLUENCE_PASSWORD` 環境変数専用です。シェルで `export` するほか、`docs_dir`（既定は `docs/`）直下に `.env` を置いても自動で読み込まれます（`build` / `serve` 共通。既にシェルでexport済みの環境変数がある場合はそちらが優先されます）。
+
+```bash
+# docs/.env
+CONFLUENCE_URL=https://example.atlassian.net/wiki
+CONFLUENCE_USERNAME=alice
+CONFLUENCE_PASSWORD=...
+```
+
+詳細は [docs/guide/plugins.md](./docs/guide/plugins.md) を参照してください。独自プラグインの書き方（フック一覧等）は [examples/plugins/README.md](./examples/plugins/README.md) にあります。
+
 ## 開発用コマンド
 
 | コマンド | 説明 |

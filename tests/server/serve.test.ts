@@ -15,9 +15,35 @@ afterEach(async () => {
       await close();
     }
   }
+  delete process.env.MKDOCSGEN_TEST_SERVE_DOTENV;
 });
 
 describe("runServe", () => {
+  it("docs_dir/.envの値をprocess.envへ反映する", async () => {
+    // 仕様: build同様、serveの初回ビルド時もdocs_dir/.envを読み込む
+    const { runServe } = await import("../../src/server/serve.js");
+    const root = createTempProject();
+    fs.writeFileSync(
+      path.join(root, "docs", ".env"),
+      "MKDOCSGEN_TEST_SERVE_DOTENV=from-dotenv\n",
+      "utf-8"
+    );
+    const logger = silentLogger();
+
+    try {
+      const handle = await runServe({
+        configPath: path.join(root, "mkdocsgen.yml"),
+        port: 0,
+        verbose: false
+      }, logger);
+      closers.push(() => handle.close());
+
+      expect(process.env.MKDOCSGEN_TEST_SERVE_DOTENV).toBe("from-dotenv");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("localhostにバインドしてビルド済みHTMLを返す", async () => {
     // 仕様: HTTPサーバーはlocalhostのみ、静的ファイルを配信する
     const { runServe } = await import("../../src/server/serve.js");

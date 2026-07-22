@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ResolvedConfig } from "../config/schema.js";
+import { builtinPlugins } from "./builtin/index.js";
 import type { Plugin, PluginFactory } from "./types.js";
 
 /**
@@ -32,45 +33,18 @@ export async function loadPlugins(config: ResolvedConfig): Promise<Plugin[]>
 
   const plugins: Plugin[] = [];
   for (const entry of config.plugins) {
-    // 設定ファイル基準で相対パスを絶対パスへ解決する
-    const absPath = path.resolve(config.configDir, entry.path);
-
-    // ファイルが無い場合はimport前に分かりやすいエラーにする
-    if (!fs.existsSync(absPath)) {
-      throw new PluginError(`プラグインファイルが見つかりません: ${absPath}`);
-    }
-
-    // ESMとして動的importする（file:// URLが必要）
-    // Nodeのモジュールキャッシュ回避のため、mtimeをクエリに付けて同一serve内の書き換えに追従する
-    let mod: { default?: unknown };
-    try {
-      const mtimeMs = fs.statSync(absPath).mtimeMs;
-      const importUrl = `${pathToFileURL(absPath).href}?t=${mtimeMs}`;
-      mod = await import(importUrl);
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      throw new PluginError(
-        `プラグインの読み込みに失敗しました (${entry.path}): ${detail}`,
-        { cause: error }
-      );
-    }
-
-    // default exportはPluginFactory（関数）である必要がある
-    if (typeof mod.default !== "function") {
-      throw new PluginError(
-        `プラグインのdefault exportはPluginFactory（関数）である必要があります: ${entry.path}`
-      );
-    }
+    const { factory, sourceLabel } = typeof entry.builtin === "string"
+      ? resolveBuiltinFactory(entry.builtin)
+      : await resolvePathFactory(config.configDir, entry.path ?? "");
 
     // YAMLのoptionsを渡してPluginインスタンスを得る
-    const factory = mod.default as PluginFactory;
     let plugin: Plugin;
     try {
       plugin = factory(entry.options ?? {});
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       throw new PluginError(
-        `プラグインファクトリの実行に失敗しました (${entry.path}): ${detail}`,
+        `プラグインファクトリの実行に失敗しました (${sourceLabel}): ${detail}`,
         { cause: error }
       );
     }
@@ -78,7 +52,7 @@ export async function loadPlugins(config: ResolvedConfig): Promise<Plugin[]>
     // 例外メッセージに使うためnameは必須
     if (typeof plugin?.name !== "string" || plugin.name.trim() === "") {
       throw new PluginError(
-        `プラグインは非空のnameプロパティを返す必要があります: ${entry.path}`
+        `プラグインは非空のnameプロパティを返す必要があります: ${sourceLabel}`
       );
     }
 
@@ -86,4 +60,58 @@ export async function loadPlugins(config: ResolvedConfig): Promise<Plugin[]>
   }
 
   return plugins;
+}
+
+/**
+ * 組み込みプラグイン名からPluginFactoryを解決する
+ */
+function resolveBuiltinFactory(name: string): { factory: PluginFactory; sourceLabel: string }
+{
+  const factory = builtinPlugins[name];
+  if (!factory) {
+    const available = Object.keys(builtinPlugins).join(", ");
+    throw new PluginError(`未知の組み込みプラグインです: ${name}（利用可能: ${available}）`);
+  }
+  return { factory, sourceLabel: `builtin:${name}` };
+}
+
+/**
+ * ローカルファイルパスからPluginFactoryを動的importで解決する
+ */
+async function resolvePathFactory(
+  configDir: string,
+  entryPath: string
+): Promise<{ factory: PluginFactory; sourceLabel: string }>
+{
+  // 設定ファイル基準で相対パスを絶対パスへ解決する
+  const absPath = path.resolve(configDir, entryPath);
+
+  // ファイルが無い場合はimport前に分かりやすいエラーにする
+  if (!fs.existsSync(absPath)) {
+    throw new PluginError(`プラグインファイルが見つかりません: ${absPath}`);
+  }
+
+  // ESMとして動的importする（file:// URLが必要）
+  // Nodeのモジュールキャッシュ回避のため、mtimeをクエリに付けて同一serve内の書き換えに追従する
+  let mod: { default?: unknown };
+  try {
+    const mtimeMs = fs.statSync(absPath).mtimeMs;
+    const importUrl = `${pathToFileURL(absPath).href}?t=${mtimeMs}`;
+    mod = await import(importUrl);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new PluginError(
+      `プラグインの読み込みに失敗しました (${entryPath}): ${detail}`,
+      { cause: error }
+    );
+  }
+
+  // default exportはPluginFactory（関数）である必要がある
+  if (typeof mod.default !== "function") {
+    throw new PluginError(
+      `プラグインのdefault exportはPluginFactory（関数）である必要があります: ${entryPath}`
+    );
+  }
+
+  return { factory: mod.default as PluginFactory, sourceLabel: entryPath };
 }

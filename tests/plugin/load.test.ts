@@ -103,6 +103,29 @@ describe("loadPlugins", () => {
     await expect(loadPlugins(fixture.config)).rejects.toThrow(/name/);
   });
 
+  it("builtin指定で組み込みプラグインをpath無しで解決できる", async () => {
+    // dryRun:trueなのでAPI呼び出しは発生しない
+    const fixture = createPluginFixture({
+      plugins: [{ builtin: "confluence-export", options: { space: "DOCS", dryRun: true } }]
+    });
+    cleanups.push(fixture.cleanup);
+
+    const plugins = await loadPlugins(fixture.config);
+    expect(plugins).toHaveLength(1);
+    expect(plugins[0]?.name).toBe("confluence-export");
+  });
+
+  it("未知のbuiltin名はPluginErrorになる", async () => {
+    // 利用可能な組み込みプラグイン名を案内する
+    const fixture = createPluginFixture({
+      plugins: [{ builtin: "no-such-plugin" }]
+    });
+    cleanups.push(fixture.cleanup);
+
+    await expect(loadPlugins(fixture.config)).rejects.toBeInstanceOf(PluginError);
+    await expect(loadPlugins(fixture.config)).rejects.toThrow(/no-such-plugin/);
+  });
+
   it("同一プロセス内でプラグインファイルを書き換えたら新しいファクトリが使われる", async () => {
     // Node ESMキャッシュに乗っても、mtime付きURLで再読込できるようにする
     const fixture = createPluginFixture({
