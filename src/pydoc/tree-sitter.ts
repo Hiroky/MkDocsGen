@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Language, Parser } from "web-tree-sitter";
 
 /** createRequire は ESM から CJS パッケージのパス解決に使う */
@@ -17,7 +18,7 @@ let initPromise: Promise<PythonParser> | null = null;
 /**
  * web-tree-sitter と tree-sitter-python.wasm をロードして PythonParser を返す
  *
- * 注意: tree-sitter-wasms の WASM は旧 dylink 形式のため、web-tree-sitter は 0.25.x 系を使う
+ * 注意: tree-sitter-python.wasm は旧 dylink 形式のため、web-tree-sitter は 0.25.x 系を使う
  */
 export async function createPythonParser(): Promise<PythonParser>
 {
@@ -36,12 +37,11 @@ export async function createPythonParser(): Promise<PythonParser>
       }
     });
 
-    // 言語WASMは tree-sitter-wasms に同梱されているものを使う
-    const languagePath = path.join(
-      path.dirname(require.resolve("tree-sitter-wasms/package.json")),
-      "out",
-      "tree-sitter-python.wasm"
-    );
+    // 言語WASMはリポジトリに同梱している vendor/tree-sitter-python.wasm を使う
+    // （tree-sitter-wasms は36言語分・49MBを同梱するため、Python用の1ファイルだけを
+    //   vendor化することで配布サイズを削減している）
+    const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+    const languagePath = path.join(moduleDir, "..", "..", "vendor", "tree-sitter-python.wasm");
     const language = await Language.load(languagePath);
     const parser = new Parser();
     parser.setLanguage(language);

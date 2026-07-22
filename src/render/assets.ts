@@ -129,11 +129,13 @@ function copyBrandAssets(
 
 /**
  * mermaid.min.jsを出力assetsへコピーする
+ *
+ * mermaidパッケージ本体はcytoscape/katex等の周辺依存が大きいため採用せず、
+ * 実際に使うUMDビルド1ファイルのみをvendor/へ同梱している
  */
 function copyMermaidRuntime(outputAssetsDir: string): void
 {
-  // package.jsonのexportsではなく実ファイルパスをresolveする
-  const mermaidEntry = require.resolve("mermaid/dist/mermaid.min.js");
+  const mermaidEntry = fileURLToPath(new URL("../../vendor/mermaid.min.js", import.meta.url));
   fs.copyFileSync(mermaidEntry, path.join(outputAssetsDir, "mermaid.min.js"));
 }
 
