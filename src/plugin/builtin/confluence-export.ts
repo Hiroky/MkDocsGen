@@ -9,6 +9,7 @@ import type { Plugin, PluginFactory } from "../types.js";
  *
  * buildEndフックでBuildContextから全ページHTMLとナビ階層を受け取り、
  * Confluence REST API（Storage Format、Basic認証）へページを作成/更新する。
+ * 同期は `mkdocsgen build --enable confluence-export` のときだけ実行する（フラグ無しのbuildではスキップ）。
  *
  * url / username / space / parentPageId は mkdocsgen.yml の options か
  * 環境変数のどちらでも指定できる（両方指定時は環境変数を優先）。
@@ -28,6 +29,10 @@ import type { Plugin, PluginFactory } from "../types.js";
  *         space: DOCS
  *         parentPageId: "123456"   # 任意。ルートの親ページID
  *         dryRun: true             # trueならAPIを呼ばずログのみ
+ *
+ * 実行例:
+ *   mkdocsgen build                              # サイト生成のみ（Confluence同期なし）
+ *   mkdocsgen build --enable confluence-export   # サイト生成後にConfluenceへ同期
  */
 
 /** エクスポート計画1件（ナビノード1つに対応） */
@@ -139,6 +144,14 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
      */
     async buildEnd(context)
     {
+      // --enable に自プラグイン名が無い通常のbuildでは同期しない（ローカル検証で誤アップロードしないため）
+      if (!context.enabledPlugins?.includes("confluence-export")) {
+        console.info(
+          "[confluence-export] スキップしました（同期するには mkdocsgen build --enable confluence-export）"
+        );
+        return;
+      }
+
       // 必須オプションの検証
       if (!space) {
         throw new Error("space が未設定です（options.space か CONFLUENCE_SPACE でスペースキーを指定してください）");

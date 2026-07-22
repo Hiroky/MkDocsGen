@@ -66,4 +66,6 @@ export interface BuildContext {
   config: ResolvedConfig;
   pages: Page[];
   nav: NavNode[];
+  /** CLIの --enable で明示指定されたプラグイン名（プラグイン側が参照） */
+  enabledPlugins?: readonly string[];
 }

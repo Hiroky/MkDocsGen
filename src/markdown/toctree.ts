@@ -46,12 +46,25 @@ const DEFAULT_OPTIONS: ToctreeOptions = {
 export const TOCTREE_PLACEHOLDER_RE = /(?:<p>\s*)?@@MKDOCSGEN_TOCTREE_(\d+)@@(?:\s*<\/p>)?/g;
 
 /**
+ * CRLF/CRをLFへ正規化する（行末\\rがディレクティブ検出を壊さないようにする）
+ */
+function normalizeNewlines(markdown: string): string
+{
+  // 先に\\r\\nを潰し、残った単独\\rもLFにする
+  return markdown.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
+/**
  * Markdown全文から ::: toctree ディレクティブをすべて見つける
+ *
+ * 返却する start/end は改行正規化後の文字列に対するオフセットである
  */
 export function findToctreeDirectives(markdown: string): ToctreeDirective[]
 {
+  // Windows等のCRLFでも行末\\rが正規表現に残らないよう先に正規化する
+  const source = normalizeNewlines(markdown);
   const directives: ToctreeDirective[] = [];
-  const lines = markdown.split("\n");
+  const lines = source.split("\n");
   // 各行の開始文字オフセットを事前計算する（置換範囲の算出に使う）
   const lineStarts: number[] = [];
   let running = 0;
@@ -143,13 +156,15 @@ export function findToctreeDirectives(markdown: string): ToctreeDirective[]
  */
 export function extractToctreePlaceholders(markdown: string): ExtractToctreeResult
 {
-  const directives = findToctreeDirectives(markdown);
+  // find側と同じ正規化済み文字列で置換し、オフセットがずれないようにする
+  const source = normalizeNewlines(markdown);
+  const directives = findToctreeDirectives(source);
   if (directives.length === 0) {
-    return { markdown, toctrees: [] };
+    return { markdown: source, toctrees: [] };
   }
 
   // 後ろから置換してオフセットがずれないようにする
-  let result = markdown;
+  let result = source;
   const toctrees: ToctreeMeta[] = [];
   for (let i = directives.length - 1; i >= 0; i--) {
     const directive = directives[i]!;

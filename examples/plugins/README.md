@@ -2,7 +2,7 @@
 
 MkDocsGenの独自プラグインの書き方を示すディレクトリです。
 
-Confluenceエクスポートは組み込みプラグインとしてパッケージに同梱されています。`examples/plugins/confluence-export.mjs` のようなファイルをパスで参照する必要はなく、`mkdocsgen.yml` に次のように書くだけで有効化できます。
+Confluenceエクスポートは組み込みプラグインとしてパッケージに同梱されています。`examples/plugins/confluence-export.mjs` のようなファイルをパスで参照する必要はなく、`mkdocsgen.yml` に次のように書くだけで登録できます。同期の実行には `mkdocsgen build --enable confluence-export` が必要です。
 
 ```yaml
 plugins:

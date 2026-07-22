@@ -32,6 +32,8 @@ export interface BuildOptions {
   strict: boolean;
   clean: boolean;
   verbose: boolean;
+  /** CLIの --enable で指定されたプラグイン名一覧 */
+  enabledPlugins?: readonly string[];
 }
 
 /** ビルド結果サマリ */
@@ -95,7 +97,11 @@ export async function runBuild(options: BuildOptions, logger: Logger): Promise<B
   }
 
   // 実体のサイト生成へ委譲する
-  const output = await buildSite(config, logger, { strict: options.strict });
+  const output = await buildSite(config, logger, {
+    strict: options.strict,
+    // --enable で指定されたプラグイン名をBuildContext経由で渡す（コアは中身を解釈しない）
+    enabledPlugins: options.enabledPlugins ?? []
+  });
   return output.result;
 }
 
@@ -117,6 +123,8 @@ export async function buildSite(
     skipConfigResolved?: boolean;
     /** trueならbuildEndをスキップする（serve経路用。副作用プラグインの連打を防ぐ） */
     skipBuildEnd?: boolean;
+    /** CLIの --enable で指定されたプラグイン名（BuildContext経由で渡す） */
+    enabledPlugins?: BuildContext["enabledPlugins"];
   } = { strict: false }
 ): Promise<SiteBuildOutput>
 {
@@ -155,7 +163,9 @@ export async function buildSite(
   validateLinks(pages, logger);
 
   // アセット・検索インデックス・全ページHTMLを書き出す
-  const context = await writeFullSite(config, pages, navResult.nav, logger, plugins);
+  const context = await writeFullSite(
+    config, pages, navResult.nav, logger, plugins, options.enabledPlugins
+  );
 
   // buildEndはCLIのrunBuild経路でのみ実行する（serveのfullBuild/増分ではスキップ）
   if (!options.skipBuildEnd) {
@@ -281,7 +291,8 @@ export async function writeFullSite(
   pages: Page[],
   nav: NavNode[],
   logger: Logger,
-  plugins: Plugin[] = []
+  plugins: Plugin[] = [],
+  enabledPlugins?: BuildContext["enabledPlugins"]
 ): Promise<BuildContext>
 {
   fs.mkdirSync(config.outputDirAbs, { recursive: true });
@@ -292,7 +303,13 @@ export async function writeFullSite(
   const resolvedPages = pages.map((page) => resolvePageToctrees(page, nav, pages, logger));
   writeSearchIndex(config.outputDirAbs, buildSearchIndex(resolvedPages));
   const renderer = new Renderer(config);
-  const context: BuildContext = { config, pages: resolvedPages, nav };
+  // enabledPluginsはbuildEndプラグインが自身のnameで参照する（コアは解釈しない）
+  const context: BuildContext = {
+    config,
+    pages: resolvedPages,
+    nav,
+    ...(enabledPlugins !== undefined ? { enabledPlugins } : {})
+  };
   for (const page of resolvedPages) {
     await writePageHtml(config, page, context, renderer, logger, plugins);
   }

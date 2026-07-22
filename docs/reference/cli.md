@@ -29,6 +29,7 @@ mkdocsgen init ./my-docs
 ```bash
 mkdocsgen build
 mkdocsgen build --config ./mkdocsgen.yml --clean --strict --verbose
+mkdocsgen build --enable confluence-export
 ```
 
 | オプション | 説明 |
@@ -37,6 +38,7 @@ mkdocsgen build --config ./mkdocsgen.yml --clean --strict --verbose
 | `--clean` | 出力ディレクトリを事前に空にする（ソースと同一・包含は拒否） |
 | `--strict` | 警告が1件以上あれば終了コード1 |
 | `--verbose` | デバッグログを出力 |
+| `--enable <name>` | 副作用のあるプラグインを名前指定で有効化する（複数可。例: `confluence-export`） |
 
 成功時はページ数・警告数・所要時間のサマリを表示します。
 

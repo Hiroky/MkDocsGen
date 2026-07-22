@@ -7,6 +7,15 @@ import { runServe } from "../server/serve.js";
 import { runInit } from "./init.js";
 
 /**
+ * --enable の値を配列へ蓄積する（commanderのrepeatableオプション用）
+ */
+function collectEnable(value: string, previous: string[]): string[]
+{
+  previous.push(value);
+  return previous;
+}
+
+/**
  * MkDocsGen CLIのコマンド定義（init / build / serve）を構築して返す
  */
 export function createProgram(): Command
@@ -36,11 +45,14 @@ export function createProgram(): Command
     .option("--strict", "警告をエラーとして扱い、終了コード1で失敗させる", false)
     .option("--clean", "出力ディレクトリを事前に空にする", false)
     .option("--verbose", "デバッグログを出力する", false)
+    // 複数回指定可。コアは名前を解釈せず、プラグイン側が自身のnameで判定する
+    .option("--enable <name>", "副作用のあるプラグインを名前指定で有効化する（複数可）", collectEnable, [])
     .action(async (options: {
       config: string;
       strict: boolean;
       clean: boolean;
       verbose: boolean;
+      enable: string[];
     }) => {
       const logger = new Logger(options.verbose);
       try {
@@ -49,7 +61,8 @@ export function createProgram(): Command
           configPath: options.config,
           strict: options.strict,
           clean: options.clean,
-          verbose: options.verbose
+          verbose: options.verbose,
+          enabledPlugins: options.enable
         }, logger);
       } catch (error) {
         // ConfigError / BuildError / PluginErrorはメッセージのみ、想定外はスタック付き

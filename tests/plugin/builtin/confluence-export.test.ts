@@ -27,6 +27,7 @@ function createContext(): BuildContext
 {
   // NavNode.url はoutputPath形式（base_url無し・先頭スラッシュ無し）、
   // Page.url はbase_url込みで先頭スラッシュ付き。両者は文字列として異なる点に注意
+  // enabledPluginsに自プラグイン名があることは既存テストが同期経路を直接検証するための前提
   return {
     config: {} as BuildContext["config"],
     nav: [{ title: "Home", url: "index.html", children: [] }],
@@ -41,7 +42,8 @@ function createContext(): BuildContext
       anchorIds: [],
       links: [],
       contentHtml: "<p>Hello</p>"
-    }]
+    }],
+    enabledPlugins: ["confluence-export"]
   };
 }
 
@@ -82,7 +84,8 @@ function createNestedContext(): BuildContext
         links: [],
         contentHtml: "<p>Setup content</p>"
       }
-    ]
+    ],
+    enabledPlugins: ["confluence-export"]
   };
 }
 
@@ -133,7 +136,8 @@ function createSiteContext(): BuildContext
         links: [],
         contentHtml: "<p>API</p>"
       }
-    ]
+    ],
+    enabledPlugins: ["confluence-export"]
   };
 }
 
@@ -158,7 +162,8 @@ function createContextWithoutHome(): BuildContext
         links: [],
         contentHtml: "<p>Guide</p>"
       }
-    ]
+    ],
+    enabledPlugins: ["confluence-export"]
   };
 }
 
@@ -181,6 +186,44 @@ describe("confluence-export ビルトインプラグイン", () => {
   it("options.password が指定されるとfactory呼び出し時点でエラーになる", () => {
     expect(() => createConfluenceExportPlugin({ space: "DOCS", password: "secret" }))
       .toThrow(/password/);
+  });
+
+  it("enabledPluginsに自プラグイン名が無いとfetchせずスキップし、ログを出す", async () => {
+    // mkdocsgen build（--enable無し）ではローカル検証のみで上げない
+    const { fetchMock } = stubFetchSuccess();
+    const infoLines: string[] = [];
+    vi.spyOn(console, "info").mockImplementation((line: string) => {
+      infoLines.push(line);
+    });
+    const plugin = createConfluenceExportPlugin({
+      url: "https://example.atlassian.net/wiki",
+      username: "alice",
+      space: "DOCS"
+    });
+    process.env.CONFLUENCE_PASSWORD = "s3cr3t";
+
+    // enabledPluginsを付けない＝通常のbuild相当
+    const context = createContext();
+    delete context.enabledPlugins;
+    await expect(plugin.buildEnd?.(context)).resolves.toBeUndefined();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(infoLines.some((line) => line.includes("--enable confluence-export"))).toBe(true);
+  });
+
+  it("enabledPluginsに他プラグイン名だけだとスキップする", async () => {
+    const { fetchMock } = stubFetchSuccess();
+    const plugin = createConfluenceExportPlugin({
+      url: "https://example.atlassian.net/wiki",
+      username: "alice",
+      space: "DOCS"
+    });
+    process.env.CONFLUENCE_PASSWORD = "s3cr3t";
+
+    const context = createContext();
+    context.enabledPlugins = ["other-plugin"];
+    await expect(plugin.buildEnd?.(context)).resolves.toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("url/username/spaceは環境変数とoptionsの両方に値があれば環境変数を優先する", async () => {

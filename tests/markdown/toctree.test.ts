@@ -68,6 +68,14 @@ describe("findToctreeDirectives", () => {
     });
   });
 
+  it("CRLF改行でも::: toctreeを検出する", () => {
+    // Windows由来のCRLFだと行末\\rが残り、LF前提の正規表現に落ちていた
+    const md = "Intro\r\n\r\n::: toctree\r\nmaxdepth: 1\r\n:::\r\n\r\nAfter\r\n";
+    const found = findToctreeDirectives(md);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.options.maxdepth).toBe(1);
+  });
+
   it("コードフェンス内の::: toctreeは検出しない", () => {
     const md = [
       "```",
@@ -95,6 +103,20 @@ describe("extractToctreePlaceholders", () => {
     expect(markdown).not.toContain("::: toctree");
     expect(markdown).toContain("Before");
     expect(markdown).toContain("After");
+  });
+
+  it("CRLFの::: toctreeを置換し、Admonitionに渡さない", () => {
+    // 置換漏れだとconvert時に未知Admonitionタイプ "toctree" になる
+    const md = "Before\r\n\r\n::: toctree\r\nmaxdepth: 2\r\ncaption: 目次\r\n:::\r\n\r\nAfter";
+    const { markdown, toctrees } = extractToctreePlaceholders(md);
+    expect(toctrees).toHaveLength(1);
+    expect(toctrees[0]!.options).toEqual({
+      maxdepth: 2,
+      caption: "目次",
+      titlesonly: false
+    });
+    expect(markdown).toContain("@@MKDOCSGEN_TOCTREE_0@@");
+    expect(markdown).not.toContain("::: toctree");
   });
 });
 
