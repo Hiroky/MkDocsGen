@@ -6,6 +6,7 @@ import {
   resolveToctreePlaceholders,
   findToctreeRootNodes,
   collectToctreeDescendantUrls,
+  toctreeDependsOnChangedUrls,
   TOCTREE_PLACEHOLDER_RE
 } from "../../src/markdown/toctree.js";
 import type { Heading, NavNode, Page } from "../../src/types.js";
@@ -53,6 +54,7 @@ describe("findToctreeDirectives", () => {
       caption: "このセクション",
       titlesonly: true
     });
+    expect(found[0]!.entries).toEqual([]);
     expect(md.slice(found[0]!.start, found[0]!.end)).toContain("::: toctree");
     expect(md.slice(found[0]!.start, found[0]!.end)).toContain(":::");
   });
@@ -66,6 +68,45 @@ describe("findToctreeDirectives", () => {
       caption: null,
       titlesonly: false
     });
+    expect(found[0]!.entries).toEqual([]);
+  });
+
+  it("明示エントリとTitle上書きをパースする", () => {
+    const md = [
+      "::: toctree",
+      "maxdepth: 2",
+      "",
+      "guide/setup.md",
+      "guide/markdown",
+      "API リファレンス <reference/cli.md>",
+      ":::"
+    ].join("\n");
+    const found = findToctreeDirectives(md);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.options.maxdepth).toBe(2);
+    expect(found[0]!.entries).toEqual([
+      { path: "guide/setup.md", title: null },
+      { path: "guide/markdown", title: null },
+      { path: "reference/cli.md", title: "API リファレンス" }
+    ]);
+  });
+
+  it("エントリ開始後のkey:value行はエントリとして扱う", () => {
+    const md = [
+      "::: toctree",
+      "maxdepth: 1",
+      "guide/setup.md",
+      "caption: これはエントリ扱い",
+      ":::"
+    ].join("\n");
+    const found = findToctreeDirectives(md);
+    expect(found).toHaveLength(1);
+    expect(found[0]!.options.maxdepth).toBe(1);
+    expect(found[0]!.options.caption).toBeNull();
+    expect(found[0]!.entries).toEqual([
+      { path: "guide/setup.md", title: null },
+      { path: "caption: これはエントリ扱い", title: null }
+    ]);
   });
 
   it("CRLF改行でも::: toctreeを検出する", () => {
@@ -115,8 +156,19 @@ describe("extractToctreePlaceholders", () => {
       caption: "目次",
       titlesonly: false
     });
+    expect(toctrees[0]!.entries).toEqual([]);
     expect(markdown).toContain("@@MKDOCSGEN_TOCTREE_0@@");
     expect(markdown).not.toContain("::: toctree");
+  });
+
+  it("明示エントリ付きディレクティブをメタへ残す", () => {
+    const md = "::: toctree\nguide/setup.md\nセットアップ <guide/setup.md>\n:::";
+    const { toctrees } = extractToctreePlaceholders(md);
+    expect(toctrees).toHaveLength(1);
+    expect(toctrees[0]!.entries).toEqual([
+      { path: "guide/setup.md", title: null },
+      { path: "guide/setup.md", title: "セットアップ" }
+    ]);
   });
 });
 
@@ -179,7 +231,7 @@ describe("resolveToctreePlaceholders", () => {
       sourcePath: "guide/index.md",
       outputPath: "guide/index.html",
       title: "Guide",
-      toctrees: [{ index: 0, options: { maxdepth: 2, caption: "目次", titlesonly: false } }],
+      toctrees: [{ index: 0, options: { maxdepth: 2, caption: "目次", titlesonly: false }, entries: [] }],
       contentHtml: "<p>Intro</p>\n<p>@@MKDOCSGEN_TOCTREE_0@@</p>\n"
     }),
     makePage({
@@ -193,6 +245,11 @@ describe("resolveToctreePlaceholders", () => {
       outputPath: "guide/markdown.html",
       title: "Markdown",
       headings: markdownHeadings
+    }),
+    makePage({
+      sourcePath: "reference/cli.md",
+      outputPath: "reference/cli.html",
+      title: "CLI"
     })
   ];
 
@@ -215,7 +272,7 @@ describe("resolveToctreePlaceholders", () => {
     const logger = new Logger(false, { stdout: () => {}, stderr: () => {} });
     const guide = {
       ...pages[1]!,
-      toctrees: [{ index: 0, options: { maxdepth: 1, caption: null, titlesonly: false } }]
+      toctrees: [{ index: 0, options: { maxdepth: 1, caption: null, titlesonly: false }, entries: [] }]
     };
     const html = resolveToctreePlaceholders(guide.contentHtml, guide, nav, pages, logger);
     expect(html).toContain("Setup");
@@ -228,7 +285,7 @@ describe("resolveToctreePlaceholders", () => {
     const logger = new Logger(false, { stdout: () => {}, stderr: () => {} });
     const guide = {
       ...pages[1]!,
-      toctrees: [{ index: 0, options: { maxdepth: null, caption: null, titlesonly: true } }]
+      toctrees: [{ index: 0, options: { maxdepth: null, caption: null, titlesonly: true }, entries: [] }]
     };
     const html = resolveToctreePlaceholders(guide.contentHtml, guide, nav, pages, logger);
     expect(html).toContain("Setup");
@@ -242,7 +299,7 @@ describe("resolveToctreePlaceholders", () => {
       sourcePath: "guide/setup.md",
       outputPath: "guide/setup.html",
       title: "Setup",
-      toctrees: [{ index: 0, options: { maxdepth: null, caption: null, titlesonly: false } }],
+      toctrees: [{ index: 0, options: { maxdepth: null, caption: null, titlesonly: false }, entries: [] }],
       contentHtml: "<p>@@MKDOCSGEN_TOCTREE_0@@</p>\n"
     });
     const html = resolveToctreePlaceholders(leaf.contentHtml, leaf, nav, pages, logger);
@@ -250,6 +307,145 @@ describe("resolveToctreePlaceholders", () => {
     expect(html).not.toContain("@@MKDOCSGEN_TOCTREE_");
     expect(logger.getWarnCount()).toBe(1);
     expect(warn.mock.calls[0]?.[0]).toMatch(/toctree/);
+  });
+
+  it("明示エントリは列挙順で出し未指定の兄弟は出さない", () => {
+    const logger = new Logger(false, { stdout: () => {}, stderr: () => {} });
+    const home = makePage({
+      sourcePath: "index.md",
+      outputPath: "index.html",
+      title: "Home",
+      toctrees: [{
+        index: 0,
+        options: { maxdepth: 1, caption: null, titlesonly: false },
+        entries: [
+          { path: "guide/markdown", title: null },
+          { path: "guide/setup.html", title: null }
+        ]
+      }],
+      contentHtml: "<p>@@MKDOCSGEN_TOCTREE_0@@</p>\n"
+    });
+    const html = resolveToctreePlaceholders(home.contentHtml, home, nav, pages, logger);
+    // Markdownが先、Setupが後（列挙順）。Guideセクション自体は出ない
+    expect(html).toContain("Markdown");
+    expect(html).toContain("Setup");
+    expect(html).not.toContain(">Guide<");
+    expect(html.indexOf("Markdown")).toBeLessThan(html.indexOf("Setup"));
+  });
+
+  it("Title上書きとmaxdepthが明示ルートでも効く", () => {
+    const logger = new Logger(false, { stdout: () => {}, stderr: () => {} });
+    const home = makePage({
+      sourcePath: "index.md",
+      outputPath: "index.html",
+      title: "Home",
+      toctrees: [{
+        index: 0,
+        options: { maxdepth: 2, caption: null, titlesonly: false },
+        entries: [{ path: "guide/setup.md", title: "導入手順" }]
+      }],
+      contentHtml: "<p>@@MKDOCSGEN_TOCTREE_0@@</p>\n"
+    });
+    const html = resolveToctreePlaceholders(home.contentHtml, home, nav, pages, logger);
+    expect(html).toContain("導入手順");
+    expect(html).not.toContain(">Setup<");
+    expect(html).toContain("Install");
+    expect(html).not.toContain("Detail");
+    expect(html).not.toContain("Markdown");
+  });
+
+  it("存在しないパスは警告してスキップする", () => {
+    const warn = vi.fn();
+    const logger = new Logger(false, { stdout: () => {}, stderr: warn });
+    const home = makePage({
+      sourcePath: "index.md",
+      outputPath: "index.html",
+      title: "Home",
+      toctrees: [{
+        index: 0,
+        options: { maxdepth: 1, caption: null, titlesonly: false },
+        entries: [
+          { path: "missing/page.md", title: null },
+          { path: "guide/setup.md", title: null }
+        ]
+      }],
+      contentHtml: "<p>@@MKDOCSGEN_TOCTREE_0@@</p>\n"
+    });
+    const html = resolveToctreePlaceholders(home.contentHtml, home, nav, pages, logger);
+    expect(html).toContain("Setup");
+    expect(html).not.toContain("missing");
+    expect(logger.getWarnCount()).toBe(1);
+    expect(warn.mock.calls[0]?.[0]).toMatch(/toctree/);
+  });
+
+  it("不正パスは警告してスキップする", () => {
+    const warn = vi.fn();
+    const logger = new Logger(false, { stdout: () => {}, stderr: warn });
+    const home = makePage({
+      sourcePath: "index.md",
+      outputPath: "index.html",
+      title: "Home",
+      toctrees: [{
+        index: 0,
+        options: { maxdepth: 1, caption: null, titlesonly: false },
+        entries: [
+          { path: "../outside.md", title: null },
+          { path: "/abs.md", title: null },
+          { path: "guide/setup.md", title: null }
+        ]
+      }],
+      contentHtml: "<p>@@MKDOCSGEN_TOCTREE_0@@</p>\n"
+    });
+    const html = resolveToctreePlaceholders(home.contentHtml, home, nav, pages, logger);
+    expect(html).toContain("Setup");
+    expect(logger.getWarnCount()).toBe(2);
+  });
+});
+
+describe("toctreeDependsOnChangedUrls", () => {
+  const nav: NavNode[] = [
+    { title: "Home", url: "index.html", children: [] },
+    {
+      title: "Guide",
+      url: "guide/index.html",
+      children: [
+        { title: "Setup", url: "guide/setup.html", children: [] },
+        { title: "Markdown", url: "guide/markdown.html", children: [] }
+      ]
+    }
+  ];
+
+  const pages: Page[] = [
+    makePage({ sourcePath: "index.md", outputPath: "index.html", title: "Home" }),
+    makePage({ sourcePath: "guide/index.md", outputPath: "guide/index.html", title: "Guide" }),
+    makePage({ sourcePath: "guide/setup.md", outputPath: "guide/setup.html", title: "Setup" }),
+    makePage({ sourcePath: "guide/markdown.md", outputPath: "guide/markdown.html", title: "Markdown" })
+  ];
+
+  it("明示エントリの子孫変更を検知する", () => {
+    const page = makePage({
+      sourcePath: "index.md",
+      outputPath: "index.html",
+      title: "Home",
+      toctrees: [{
+        index: 0,
+        options: { maxdepth: null, caption: null, titlesonly: false },
+        entries: [{ path: "guide/setup.md", title: null }]
+      }]
+    });
+    expect(toctreeDependsOnChangedUrls(page, nav, new Set(["guide/setup.html"]), pages)).toBe(true);
+    expect(toctreeDependsOnChangedUrls(page, nav, new Set(["guide/markdown.html"]), pages)).toBe(false);
+  });
+
+  it("自動列挙はナビ子の変更を検知する", () => {
+    const page = makePage({
+      sourcePath: "guide/index.md",
+      outputPath: "guide/index.html",
+      title: "Guide",
+      toctrees: [{ index: 0, options: { maxdepth: null, caption: null, titlesonly: false }, entries: [] }]
+    });
+    expect(toctreeDependsOnChangedUrls(page, nav, new Set(["guide/markdown.html"]), pages)).toBe(true);
+    expect(toctreeDependsOnChangedUrls(page, nav, new Set(["index.html"]), pages)).toBe(false);
   });
 });
 

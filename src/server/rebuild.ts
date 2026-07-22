@@ -197,7 +197,7 @@ export async function rebuildDocs(
   // 変更ページ＋toctreeが変更先に依存する親ページを再書き込みする
   for (const page of converted.pages) {
     const isChanged = changedSet.has(page.sourcePath);
-    const isToctreeParent = !isChanged && toctreeDependsOnChangedUrls(page, navResult.nav, changedUrls);
+    const isToctreeParent = !isChanged && toctreeDependsOnChangedUrls(page, navResult.nav, changedUrls, converted.pages);
     if (!isChanged && !isToctreeParent) {
       continue;
     }

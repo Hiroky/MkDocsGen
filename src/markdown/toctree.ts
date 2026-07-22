@@ -2,7 +2,7 @@
  * Sphinx風 ::: toctree ディレクティブの検出・プレースホルダ置換・HTML解決
  */
 import path from "node:path";
-import type { Logger } from "../logger.js";
+import { Logger } from "../logger.js";
 import type { Heading, NavNode, Page } from "../types.js";
 
 /** toctreeディレクティブのオプション */
@@ -15,16 +15,26 @@ export interface ToctreeOptions {
   titlesonly: boolean;
 }
 
+/** 明示列挙1件。pathはパース時点の生文字列 */
+export interface ToctreeEntry {
+  path: string;
+  /** Title <path> の表示名。無しはnull */
+  title: string | null;
+}
+
 /** 1ページ内のtoctree1件分のメタ */
 export interface ToctreeMeta {
   /** プレースホルダ番号（@@MKDOCSGEN_TOCTREE_N@@ の N） */
   index: number;
   options: ToctreeOptions;
+  /** 空配列なら現在ページのナビ子を自動列挙する */
+  entries: ToctreeEntry[];
 }
 
 /** パース結果（Markdown上の範囲付き） */
 export interface ToctreeDirective {
   options: ToctreeOptions;
+  entries: ToctreeEntry[];
   start: number;
   end: number;
 }
@@ -105,9 +115,12 @@ export function findToctreeDirectives(markdown: string): ToctreeDirective[]
 
     const start = lineStarts[i]!;
     const optionLines: string[] = [];
+    const entryLines: string[] = [];
     let endLine = i;
+    // 一度エントリ行を見たら以降はオプションに戻さない（Sphinx同様オプションは先）
+    let entriesStarted = false;
 
-    // 閉じ ::: までをオプション行として取り込む
+    // 閉じ ::: までをオプション／エントリ行として取り込む
     let j = i + 1;
     while (j < lines.length) {
       const next = lines[j]!;
@@ -116,21 +129,24 @@ export function findToctreeDirectives(markdown: string): ToctreeDirective[]
         j += 1;
         break;
       }
-      // key: value 形式の行だけをオプションとする（インデント可）
-      if (/^[ \t]*[\w-]+:/.test(next)) {
-        optionLines.push(next);
-        endLine = j;
-        j += 1;
-        continue;
-      }
       // 空行はスキップして続行する（閉じ前の余白を許容）
       if (next.trim().length === 0) {
         endLine = j;
         j += 1;
         continue;
       }
-      // 想定外の行が来たら閉じ無し扱いで打ち切る
-      break;
+      // エントリ開始前の key: value だけをオプションとする（インデント可）
+      if (!entriesStarted && /^[ \t]*[\w-]+:/.test(next)) {
+        optionLines.push(next);
+        endLine = j;
+        j += 1;
+        continue;
+      }
+      // それ以外は明示エントリ行
+      entriesStarted = true;
+      entryLines.push(next);
+      endLine = j;
+      j += 1;
     }
 
     // end は endLine の行末（最終行でなければ改行も含む）
@@ -140,6 +156,7 @@ export function findToctreeDirectives(markdown: string): ToctreeDirective[]
 
     directives.push({
       options: parseOptions(optionLines),
+      entries: parseEntries(entryLines),
       start,
       end
     });
@@ -171,7 +188,7 @@ export function extractToctreePlaceholders(markdown: string): ExtractToctreeResu
     const placeholder = `@@MKDOCSGEN_TOCTREE_${i}@@`;
     result = result.slice(0, directive.start) + placeholder + result.slice(directive.end);
     // 後ろから処理しているため前方へ積む
-    toctrees.unshift({ index: i, options: directive.options });
+    toctrees.unshift({ index: i, options: directive.options, entries: directive.entries });
   }
 
   return { markdown: result, toctrees };
@@ -224,8 +241,10 @@ export function resolveToctreePlaceholders(
 
   // 出力パス→Pageの辞書を1回だけ作る
   const pagesByUrl = new Map<string, Page>();
+  const pagesBySource = new Map<string, Page>();
   for (const p of pages) {
     pagesByUrl.set(p.outputPath, p);
+    pagesBySource.set(p.sourcePath, p);
   }
 
   const byIndex = new Map(page.toctrees.map((meta) => [meta.index, meta]));
@@ -238,9 +257,12 @@ export function resolveToctreePlaceholders(
       return "";
     }
 
-    const roots = findToctreeRootNodes(page, nav);
+    // 明示エントリがあればそれを使い、空ならナビ子の自動列挙にフォールバックする
+    const roots = meta.entries.length > 0
+      ? resolveEntriesToNavNodes(meta.entries, page, nav, pagesBySource, logger)
+      : findToctreeRootNodes(page, nav);
     if (roots.length === 0) {
-      // 葉ページ等で子が無い場合は警告して空にする
+      // 葉ページ等で子が無い場合／全エントリ解決失敗は警告して空にする
       logger.warn(`toctree: 列挙対象の子ページがありません (${page.sourcePath})`);
       return "";
     }
@@ -252,13 +274,29 @@ export function resolveToctreePlaceholders(
 /**
  * toctreeを持つページが、変更された出力パスのいずれかに依存するかを判定する
  */
-export function toctreeDependsOnChangedUrls(page: Page, nav: NavNode[], changedUrls: Set<string>): boolean
+export function toctreeDependsOnChangedUrls(
+  page: Page,
+  nav: NavNode[],
+  changedUrls: Set<string>,
+  pages: Page[]
+): boolean
 {
   if (page.toctrees.length === 0 || changedUrls.size === 0) {
     return false;
   }
-  const roots = findToctreeRootNodes(page, nav);
-  const deps = collectToctreeDescendantUrls(roots);
+
+  // 依存判定では警告を出さない（再ビルド判定の副作用を避ける）
+  const silentLogger = new Logger(false, { stdout: () => {}, stderr: () => {} });
+  const pagesBySource = new Map(pages.map((p) => [p.sourcePath, p]));
+  const deps = new Set<string>();
+
+  for (const meta of page.toctrees) {
+    const roots = meta.entries.length > 0
+      ? resolveEntriesToNavNodes(meta.entries, page, nav, pagesBySource, silentLogger)
+      : findToctreeRootNodes(page, nav);
+    collectUrlsRecursive(roots, deps);
+  }
+
   for (const url of changedUrls) {
     if (deps.has(url)) {
       return true;
@@ -459,6 +497,93 @@ function parseOptions(optionLines: string[]): ToctreeOptions
   }
 
   return options;
+}
+
+/**
+ * エントリ行を ToctreeEntry 配列へ変換する
+ */
+function parseEntries(entryLines: string[]): ToctreeEntry[]
+{
+  const entries: ToctreeEntry[] = [];
+  for (const rawLine of entryLines) {
+    // 行末コメントを落とし、インデントも除去する
+    const line = rawLine.replace(/[ \t]+#.*$/, "").trim();
+    if (line.length === 0) {
+      continue;
+    }
+    // Sphinx風 Title <path>。パス側が空ならタイトル無し扱いへフォールバックする
+    const titled = line.match(/^(.+?)\s*<([^<>]+)>\s*$/);
+    if (titled !== null) {
+      const title = titled[1]!.trim();
+      const entryPath = titled[2]!.trim();
+      if (entryPath.length > 0) {
+        entries.push({ path: entryPath, title: title.length > 0 ? title : null });
+        continue;
+      }
+    }
+    entries.push({ path: line, title: null });
+  }
+  return entries;
+}
+
+/**
+ * エントリの生パスを docs 相対の sourcePath（.md）へ正規化する。不正ならnull
+ */
+function normalizeToctreePath(raw: string): string | null
+{
+  // 区切りをPOSIXに揃え、先頭の ./ を落とす
+  let normalized = raw.trim().replace(/\\/g, "/").replace(/^\.\//, "");
+  if (normalized.length === 0) {
+    return null;
+  }
+  // docs外への脱出や絶対パスは拒否する
+  if (normalized.startsWith("/") || normalized.startsWith("../") || normalized.includes("/../") || normalized === ".." || normalized.endsWith("/..")) {
+    return null;
+  }
+  // .html指定は.mdへ、拡張子無しは.mdを付与する
+  if (normalized.endsWith(".html")) {
+    normalized = normalized.slice(0, -5) + ".md";
+  } else if (!normalized.endsWith(".md")) {
+    normalized = normalized + ".md";
+  }
+  return normalized;
+}
+
+/**
+ * 明示エントリをナビノード列へ解決する（列挙順を維持）
+ */
+function resolveEntriesToNavNodes(
+  entries: ToctreeEntry[],
+  page: Page,
+  nav: NavNode[],
+  pagesBySource: Map<string, Page>,
+  logger: Logger
+): NavNode[]
+{
+  const roots: NavNode[] = [];
+  for (const entry of entries) {
+    const sourcePath = normalizeToctreePath(entry.path);
+    if (sourcePath === null) {
+      logger.warn(`toctree: 不正なエントリパスです (${page.sourcePath}): ${entry.path}`);
+      continue;
+    }
+    const target = pagesBySource.get(sourcePath);
+    if (target === undefined) {
+      logger.warn(`toctree: エントリ先ページが見つかりません (${page.sourcePath}): ${entry.path}`);
+      continue;
+    }
+    // ナビにあれば子付きノードを使い、無ければ葉として合成する
+    const fromNav = findNavNodeByUrl(nav, target.outputPath);
+    let node: NavNode = fromNav !== null
+      ? fromNav
+      : { title: target.title, url: target.outputPath, children: [] };
+    // タイトル上書きは子を維持したまま差し替える
+    if (entry.title !== null) {
+      node = { ...node, title: entry.title };
+    }
+    roots.push(node);
+  }
+  return roots;
 }
 
 /**
