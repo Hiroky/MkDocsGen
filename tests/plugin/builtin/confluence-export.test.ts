@@ -18,12 +18,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** buildEnd(context)に渡す最小のBuildContextを作る */
+/** buildEnd(context)に渡す最小のBuildContextを作る（1ページのみ） */
 function createContext(): BuildContext
 {
+  // NavNode.url はoutputPath形式（base_url無し・先頭スラッシュ無し）、
+  // Page.url はbase_url込みで先頭スラッシュ付き。両者は文字列として異なる点に注意
   return {
     config: {} as BuildContext["config"],
-    nav: [{ title: "Home", url: "/index.html", children: [] }],
+    nav: [{ title: "Home", url: "index.html", children: [] }],
     pages: [{
       sourcePath: "index.md",
       outputPath: "index.html",
@@ -36,6 +38,47 @@ function createContext(): BuildContext
       links: [],
       contentHtml: "<p>Hello</p>"
     }]
+  };
+}
+
+/** ネストしたセクション+子ページを持つBuildContextを作る（階層バグの回帰テスト用） */
+function createNestedContext(): BuildContext
+{
+  return {
+    config: {} as BuildContext["config"],
+    nav: [{
+      title: "Guide",
+      url: "guide/index.html",
+      children: [
+        { title: "Setup", url: "guide/setup.html", children: [] }
+      ]
+    }],
+    pages: [
+      {
+        sourcePath: "guide/index.md",
+        outputPath: "guide/index.html",
+        url: "/guide/index.html",
+        title: "Guide",
+        description: "",
+        frontmatter: {},
+        headings: [],
+        anchorIds: [],
+        links: [],
+        contentHtml: "<p>Guide home</p>"
+      },
+      {
+        sourcePath: "guide/setup.md",
+        outputPath: "guide/setup.html",
+        url: "/guide/setup.html",
+        title: "Setup",
+        description: "",
+        frontmatter: {},
+        headings: [],
+        anchorIds: [],
+        links: [],
+        contentHtml: "<p>Setup content</p>"
+      }
+    ]
   };
 }
 
@@ -114,5 +157,49 @@ describe("confluence-export ビルトインプラグイン", () => {
 
     await expect(plugin.buildEnd?.(createContext())).resolves.toBeUndefined();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("ネストしたページがoutputPathで正しく紐付き、孤立扱いで重複しない", async () => {
+    // NavNode.url(outputPath形式)とPage.url(base_url付き)の型違いで
+    // 全ページが孤立扱いされ、parent=(root)で重複登録されていた回帰
+    const infoLines: string[] = [];
+    vi.spyOn(console, "info").mockImplementation((line: string) => {
+      infoLines.push(line);
+    });
+    const plugin = createConfluenceExportPlugin({ space: "DOCS", dryRun: true });
+
+    await plugin.buildEnd?.(createNestedContext());
+
+    const setupLines = infoLines.filter((line) => line.includes("title=Setup"));
+    expect(setupLines).toHaveLength(1);
+    expect(setupLines[0]).toContain("parent=Guide");
+    expect(setupLines[0]).not.toMatch(/parent=\(root\)/);
+    expect(setupLines[0]).not.toMatch(/parent=n\d/);
+  });
+
+  it("ネストしたページの実データ同期時、本文はcontentHtmlが使われる（タイトルのみのスタブにならない）", async () => {
+    const capturedBodies: string[] = [];
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init === undefined || init.method === undefined) {
+        return new Response(JSON.stringify({ results: [] }), { status: 200 });
+      }
+      capturedBodies.push(String(init.body));
+      return new Response(JSON.stringify({ id: "999" }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const plugin = createConfluenceExportPlugin({
+      url: "https://example.atlassian.net/wiki",
+      username: "alice",
+      space: "DOCS"
+    });
+    process.env.CONFLUENCE_PASSWORD = "s3cr3t";
+
+    await plugin.buildEnd?.(createNestedContext());
+
+    const setupPayload = capturedBodies
+      .map((body) => JSON.parse(body) as { title: string; body: { storage: { value: string } } })
+      .find((payload) => payload.title === "Setup");
+    expect(setupPayload?.body.storage.value).toBe("<p>Setup content</p>");
   });
 });

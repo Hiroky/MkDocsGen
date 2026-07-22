@@ -115,7 +115,7 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
         for (const item of plan) {
           console.info(
             `[confluence-export] dryRun: title=${item.title}` +
-            ` url=${item.url ?? "(section)"} parent=${item.parentKey ?? "(root)"}`
+            ` url=${item.url ?? "(section)"} parent=${describeParentForLog(plan, item.parentKey)}`
           );
         }
         return;
@@ -128,8 +128,9 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
 
       for (const item of plan) {
         // セクション（url無し）は本文なしの親ページとして作る
+        // item.urlはNavNode.url（outputPath形式）なので、比較はPage.outputPathで行う
         const page = item.url
-          ? context.pages.find((p) => p.url === item.url)
+          ? context.pages.find((p) => p.outputPath === item.url)
           : undefined;
         const bodyHtml = page ? page.contentHtml : `<p>${escapeHtml(item.title)}</p>`;
         const parentId = item.parentKey
@@ -181,20 +182,34 @@ function buildExportPlan(nav: NavNode[], pages: Page[]): PlanItem[]
   walk(nav, null);
 
   // ナビに載らない孤立ページがあれば末尾に追加する（保険）
-  const plannedUrls = new Set(plan.map((item) => item.url).filter((url): url is string => url !== null));
+  // item.urlはNavNode.url（outputPath形式）なので、比較はPage.outputPathで行う
+  // （Page.urlはbase_url込みのため文字列形式が異なり、そのまま比較すると常に不一致になる）
+  const plannedOutputPaths = new Set(plan.map((item) => item.url).filter((url): url is string => url !== null));
   for (const page of pages) {
-    if (plannedUrls.has(page.url)) {
+    if (plannedOutputPaths.has(page.outputPath)) {
       continue;
     }
     plan.push({
       key: `orphan-${page.sourcePath}`,
       parentKey: null,
       title: page.title,
-      url: page.url
+      url: page.outputPath
     });
   }
 
   return plan;
+}
+
+/**
+ * ログ表示用に親を分かりやすい文字列にする（内部キーではなく親の見出しを表示する）
+ */
+function describeParentForLog(plan: PlanItem[], parentKey: string | null): string
+{
+  if (parentKey === null) {
+    return "(root)";
+  }
+  const parent = plan.find((item) => item.key === parentKey);
+  return parent ? parent.title : parentKey;
 }
 
 /**
