@@ -15,6 +15,12 @@ export interface CopiedAssets {
   favicon: string | null;
 }
 
+/** copyAssetsのオプション */
+export interface CopyAssetsOptions {
+  /** trueならbuild-themeのminify版で上書きする。未指定時はdist経由ならtrue、src経由（docs:build等）ならfalse */
+  useMinifiedTheme?: boolean;
+}
+
 /**
  * theme.logo / theme.favicon の出力相対パスを求める（未設定ならnull）
  */
@@ -30,7 +36,7 @@ export function resolveBrandAssetPath(relPath: string | undefined): string | nul
 /**
  * テーマアセットとcustom_css / logo / faviconを出力ディレクトリへコピーする
  */
-export function copyAssets(config: ResolvedConfig): CopiedAssets
+export function copyAssets(config: ResolvedConfig, options: CopyAssetsOptions = {}): CopiedAssets
 {
   // 組み込みテーマのassetsディレクトリを解決する（src/distどちらからでも2階層上がリポジトリルート）
   const builtinAssetsDir = fileURLToPath(new URL("../../templates/assets", import.meta.url));
@@ -40,10 +46,11 @@ export function copyAssets(config: ResolvedConfig): CopiedAssets
   fs.mkdirSync(outputAssetsDir, { recursive: true });
   copyDirRecursive(builtinAssetsDir, outputAssetsDir);
 
-  // npm run build で生成されたminify済みテーマJS/CSSがあれば差し替える
-  // （無ければ開発中の読みやすいソースがそのまま使われる。npm run buildで生成先の
-  //   build-theme/ は .gitignore の /build-*/ に一致するため追跡対象外）
-  overwriteWithMinifiedThemeAssets(outputAssetsDir);
+  // 公開バイナリ（dist経由）だけ minify 済みで上書きする。
+  // docs:build / docs:serve は tsx で src から動くため、templates の編集がそのまま届く
+  if (options.useMinifiedTheme ?? shouldUseMinifiedThemeByDefault()) {
+    overwriteWithMinifiedThemeAssets(outputAssetsDir);
+  }
 
   // Mermaidランタイムをnode_modulesから同梱する（閲覧時のクライアント描画用）
   copyMermaidRuntime(outputAssetsDir);
@@ -134,6 +141,15 @@ function copyBrandAssets(
 
 /** minify対象のテーマアセットファイル名一覧 */
 const MINIFIABLE_THEME_ASSETS = ["main.js", "main.css"];
+
+/**
+ * dist経由（公開CLI）ならminify済みテーマを使い、src経由（docs:build等）なら使わない
+ */
+function shouldUseMinifiedThemeByDefault(): boolean
+{
+  // このファイル自身の配置で判定する（src/render vs dist/render）
+  return fileURLToPath(import.meta.url).includes(`${path.sep}dist${path.sep}`);
+}
 
 /**
  * build-theme/配下のminify済みファイルがあれば出力assetsを上書きする

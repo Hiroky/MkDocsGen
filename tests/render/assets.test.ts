@@ -95,8 +95,24 @@ describe("copyAssets", () => {
     expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.css"), "utf-8")).toBe(sourceCss);
   });
 
-  it("build-theme/があればminify済み版を優先する", () => {
-    // npm run build で生成されたminify成果物が存在する場合はそちらを使うこと
+  it("useMinifiedTheme:true ならbuild-theme/のminify済み版を優先する", () => {
+    // 公開パッケージ（dist経由）相当では minify 成果物を使うこと
+    fs.mkdirSync(buildThemeDir, { recursive: true });
+    fs.writeFileSync(path.join(buildThemeDir, "main.js"), "/*minified-js*/", "utf-8");
+    fs.writeFileSync(path.join(buildThemeDir, "main.css"), "/*minified-css*/", "utf-8");
+
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
+
+    copyAssets(fixture.config, { useMinifiedTheme: true });
+
+    expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.js"), "utf-8")).toBe("/*minified-js*/");
+    expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.css"), "utf-8")).toBe("/*minified-css*/");
+  });
+
+  it("src経由のデフォルトではbuild-theme/があってもtemplates/assetsを使う", () => {
+    // docs:build / docs:serve は tsx で src から動くため、minify成果物を無視してソースを出すこと
     fs.mkdirSync(buildThemeDir, { recursive: true });
     fs.writeFileSync(path.join(buildThemeDir, "main.js"), "/*minified-js*/", "utf-8");
     fs.writeFileSync(path.join(buildThemeDir, "main.css"), "/*minified-css*/", "utf-8");
@@ -107,8 +123,10 @@ describe("copyAssets", () => {
 
     copyAssets(fixture.config);
 
-    expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.js"), "utf-8")).toBe("/*minified-js*/");
-    expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.css"), "utf-8")).toBe("/*minified-css*/");
+    const sourceJs = fs.readFileSync(path.join(process.cwd(), "templates", "assets", "main.js"), "utf-8");
+    const sourceCss = fs.readFileSync(path.join(process.cwd(), "templates", "assets", "main.css"), "utf-8");
+    expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.js"), "utf-8")).toBe(sourceJs);
+    expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.css"), "utf-8")).toBe(sourceCss);
   });
 
   it("minisearch.min.jsをoutput/assetsへコピーする", () => {

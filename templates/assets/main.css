@@ -114,7 +114,8 @@ html[data-theme="dark"] {
 }
 
 html {
-  scroll-behavior: smooth;
+  /* 目次・セクションリンクは即ジャンプさせる（smoothは冗長に感じるため使わない） */
+  scroll-behavior: auto;
   -webkit-text-size-adjust: 100%;
 }
 
