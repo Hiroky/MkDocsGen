@@ -73,6 +73,8 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
   const space = resolveSetting(process.env.CONFLUENCE_SPACE, options.space) ?? "";
   const parentPageId = resolveSetting(process.env.CONFLUENCE_PARENT_PAGE_ID, options.parentPageId);
   const dryRun = options.dryRun === true;
+  // trueならルートインデックス(Home)を実際の親ページにし、他のトップレベル項目をその子にする
+  const homeAsRoot = options.homeAsRoot === true;
 
   return {
     name: "confluence-export",
@@ -104,7 +106,7 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
       }
 
       // ナビ階層を辿り、親子関係付きのエクスポート計画を作る
-      const plan = buildExportPlan(context.nav, context.pages);
+      const plan = buildExportPlan(context.nav, context.pages, { homeAsRoot });
       console.info(
         `[confluence-export] space=${space} pages=${plan.length}` +
         ` dryRun=${dryRun} parentPageId=${parentPageId ?? "(none)"}`
@@ -155,7 +157,11 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
 /**
  * ナビツリーを深さ優先で走査し、親子キー付きのエクスポート計画を作る
  */
-function buildExportPlan(nav: NavNode[], pages: Page[]): PlanItem[]
+function buildExportPlan(
+  nav: NavNode[],
+  pages: Page[],
+  options: { homeAsRoot: boolean }
+): PlanItem[]
 {
   const plan: PlanItem[] = [];
   let seq = 0;
@@ -179,7 +185,22 @@ function buildExportPlan(nav: NavNode[], pages: Page[]): PlanItem[]
     }
   }
 
-  walk(nav, null);
+  // homeAsRoot: ルートインデックス(index.html)をトップレベルから取り出し、
+  // それを親として他のトップレベル項目をぶら下げる
+  const homeIndex = options.homeAsRoot ? nav.findIndex((node) => node.url === "index.html") : -1;
+  if (homeIndex !== -1) {
+    const home = nav[homeIndex]!;
+    const siblings = [...nav.slice(0, homeIndex), ...nav.slice(homeIndex + 1)];
+    const homeKey = `n${seq++}`;
+    plan.push({ key: homeKey, parentKey: null, title: home.title, url: home.url });
+    walk([...home.children, ...siblings], homeKey);
+  } else {
+    if (options.homeAsRoot) {
+      // index.htmlが見つからない場合は通常構成（フラット）にフォールバックする
+      console.info("[confluence-export] homeAsRoot: index.htmlが見つからないため通常構成でエクスポートします");
+    }
+    walk(nav, null);
+  }
 
   // ナビに載らない孤立ページがあれば末尾に追加する（保険）
   // item.urlはNavNode.url（outputPath形式）なので、比較はPage.outputPathで行う

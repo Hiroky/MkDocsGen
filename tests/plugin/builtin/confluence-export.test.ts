@@ -82,6 +82,82 @@ function createNestedContext(): BuildContext
   };
 }
 
+/** トップレベルにHome(index.html)と他の項目が並ぶBuildContextを作る（homeAsRoot検証用） */
+function createSiteContext(): BuildContext
+{
+  return {
+    config: {} as BuildContext["config"],
+    nav: [
+      { title: "Home", url: "index.html", children: [] },
+      { title: "Guide", url: "guide/index.html", children: [] },
+      { title: "API", url: "api/index.html", children: [] }
+    ],
+    pages: [
+      {
+        sourcePath: "index.md",
+        outputPath: "index.html",
+        url: "/index.html",
+        title: "Home",
+        description: "",
+        frontmatter: {},
+        headings: [],
+        anchorIds: [],
+        links: [],
+        contentHtml: "<p>Home</p>"
+      },
+      {
+        sourcePath: "guide/index.md",
+        outputPath: "guide/index.html",
+        url: "/guide/index.html",
+        title: "Guide",
+        description: "",
+        frontmatter: {},
+        headings: [],
+        anchorIds: [],
+        links: [],
+        contentHtml: "<p>Guide</p>"
+      },
+      {
+        sourcePath: "api/index.md",
+        outputPath: "api/index.html",
+        url: "/api/index.html",
+        title: "API",
+        description: "",
+        frontmatter: {},
+        headings: [],
+        anchorIds: [],
+        links: [],
+        contentHtml: "<p>API</p>"
+      }
+    ]
+  };
+}
+
+/** Home(index.html)を含まないBuildContextを作る（homeAsRootのフォールバック検証用） */
+function createContextWithoutHome(): BuildContext
+{
+  return {
+    config: {} as BuildContext["config"],
+    nav: [
+      { title: "Guide", url: "guide/index.html", children: [] }
+    ],
+    pages: [
+      {
+        sourcePath: "guide/index.md",
+        outputPath: "guide/index.html",
+        url: "/guide/index.html",
+        title: "Guide",
+        description: "",
+        frontmatter: {},
+        headings: [],
+        anchorIds: [],
+        links: [],
+        contentHtml: "<p>Guide</p>"
+      }
+    ]
+  };
+}
+
 /** Confluence検索は空結果、作成はダミーIDを返すfetchスタブを設定する */
 function stubFetchSuccess()
 {
@@ -201,5 +277,50 @@ describe("confluence-export ビルトインプラグイン", () => {
       .map((body) => JSON.parse(body) as { title: string; body: { storage: { value: string } } })
       .find((payload) => payload.title === "Setup");
     expect(setupPayload?.body.storage.value).toBe("<p>Setup content</p>");
+  });
+
+  it("homeAsRoot:trueならHome以外のトップレベル項目がHomeの子になる", async () => {
+    const infoLines: string[] = [];
+    vi.spyOn(console, "info").mockImplementation((line: string) => {
+      infoLines.push(line);
+    });
+    const plugin = createConfluenceExportPlugin({ space: "DOCS", dryRun: true, homeAsRoot: true });
+
+    await plugin.buildEnd?.(createSiteContext());
+
+    const guideLine = infoLines.find((line) => line.includes("title=Guide"));
+    const apiLine = infoLines.find((line) => line.includes("title=API"));
+    const homeLine = infoLines.find((line) => line.includes("title=Home"));
+    expect(guideLine).toContain("parent=Home");
+    expect(apiLine).toContain("parent=Home");
+    expect(homeLine).toContain("parent=(root)");
+  });
+
+  it("homeAsRootを指定しない場合は従来どおりトップレベル項目が全てparent=(root)になる", async () => {
+    const infoLines: string[] = [];
+    vi.spyOn(console, "info").mockImplementation((line: string) => {
+      infoLines.push(line);
+    });
+    const plugin = createConfluenceExportPlugin({ space: "DOCS", dryRun: true });
+
+    await plugin.buildEnd?.(createSiteContext());
+
+    const guideLine = infoLines.find((line) => line.includes("title=Guide"));
+    const apiLine = infoLines.find((line) => line.includes("title=API"));
+    expect(guideLine).toContain("parent=(root)");
+    expect(apiLine).toContain("parent=(root)");
+  });
+
+  it("homeAsRoot:trueでもHome(index.html)が無ければ例外にならずフラットな計画にフォールバックする", async () => {
+    const infoLines: string[] = [];
+    vi.spyOn(console, "info").mockImplementation((line: string) => {
+      infoLines.push(line);
+    });
+    const plugin = createConfluenceExportPlugin({ space: "DOCS", dryRun: true, homeAsRoot: true });
+
+    await expect(plugin.buildEnd?.(createContextWithoutHome())).resolves.toBeUndefined();
+
+    const guideLine = infoLines.find((line) => line.includes("title=Guide"));
+    expect(guideLine).toContain("parent=(root)");
   });
 });

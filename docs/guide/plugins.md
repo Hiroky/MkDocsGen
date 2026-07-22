@@ -38,6 +38,20 @@ plugins:
 
 環境変数はシェルで `export` する他、`docs_dir` 直下に `.env` を置いても `build` / `serve` の両方で自動的に読み込まれます（既にシェルで設定済みの環境変数がある場合はそちらが優先され、`.env` の値では上書きされません）。
 
+### homeAsRoot（ホームを親ページにする）
+
+既定では、ナビのトップレベル項目（Home / Guide / API 等）は全て `parentPageId`（未指定ならスペース直下）の直接の子として並列に登録されます。`options.homeAsRoot: true` を指定すると、ルートインデックス（`docs/index.md` → ナビの "Home"）を実際の親ページとして扱い、他のトップレベル項目をその子としてぶら下げます。
+
+```yaml
+plugins:
+  - builtin: confluence-export
+    options:
+      space: DOCS
+      homeAsRoot: true   # HomeをConfluence上の親ページにする
+```
+
+ホーム（`docs/index.md`）が存在しない場合は、`homeAsRoot: true` を指定していても例外にはならず、既定のフラットな構成にフォールバックします。
+
 ## 独自プラグインの書き方
 
 ```javascript
