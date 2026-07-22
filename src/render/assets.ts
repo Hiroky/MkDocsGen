@@ -40,6 +40,11 @@ export function copyAssets(config: ResolvedConfig): CopiedAssets
   fs.mkdirSync(outputAssetsDir, { recursive: true });
   copyDirRecursive(builtinAssetsDir, outputAssetsDir);
 
+  // npm run build で生成されたminify済みテーマJS/CSSがあれば差し替える
+  // （無ければ開発中の読みやすいソースがそのまま使われる。npm run buildで生成先の
+  //   build-theme/ は .gitignore の /build-*/ に一致するため追跡対象外）
+  overwriteWithMinifiedThemeAssets(outputAssetsDir);
+
   // Mermaidランタイムをnode_modulesから同梱する（閲覧時のクライアント描画用）
   copyMermaidRuntime(outputAssetsDir);
 
@@ -125,6 +130,22 @@ function copyBrandAssets(
     logo: copyOne("logo", config.theme.logo),
     favicon: copyOne("favicon", config.theme.favicon)
   };
+}
+
+/** minify対象のテーマアセットファイル名一覧 */
+const MINIFIABLE_THEME_ASSETS = ["main.js", "main.css"];
+
+/**
+ * build-theme/配下のminify済みファイルがあれば出力assetsを上書きする
+ */
+function overwriteWithMinifiedThemeAssets(outputAssetsDir: string): void
+{
+  for (const fileName of MINIFIABLE_THEME_ASSETS) {
+    const minifiedPath = fileURLToPath(new URL(`../../build-theme/${fileName}`, import.meta.url));
+    if (fs.existsSync(minifiedPath)) {
+      fs.copyFileSync(minifiedPath, path.join(outputAssetsDir, fileName));
+    }
+  }
 }
 
 /**

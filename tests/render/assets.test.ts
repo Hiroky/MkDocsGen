@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { ConfigError } from "../../src/config/load.js";
@@ -7,9 +7,26 @@ import { createRenderFixture } from "./helpers.js";
 
 const cleanups: Array<() => void> = [];
 
+// 実行環境で npm run build 済み（build-theme/が存在）でもテストが実行環境に依存しないよう、
+// 各テスト前後で退避・復元する
+const buildThemeDir = path.join(process.cwd(), "build-theme");
+const buildThemeBackupDir = `${buildThemeDir}.test-backup`;
+let hadExistingBuildTheme = false;
+
+beforeEach(() => {
+  hadExistingBuildTheme = fs.existsSync(buildThemeDir);
+  if (hadExistingBuildTheme) {
+    fs.renameSync(buildThemeDir, buildThemeBackupDir);
+  }
+});
+
 afterEach(() => {
   while (cleanups.length > 0) {
     cleanups.pop()?.();
+  }
+  fs.rmSync(buildThemeDir, { recursive: true, force: true });
+  if (hadExistingBuildTheme) {
+    fs.renameSync(buildThemeBackupDir, buildThemeDir);
   }
 });
 
@@ -62,6 +79,36 @@ describe("copyAssets", () => {
     const mermaidPath = path.join(fixture.config.outputDirAbs, "assets", "mermaid.min.js");
     expect(fs.existsSync(mermaidPath)).toBe(true);
     expect(fs.statSync(mermaidPath).size).toBeGreaterThan(0);
+  });
+
+  it("build-theme/が無ければtemplates/assets/main.js・main.cssをそのまま使う", () => {
+    // 未ビルド状態（開発中）は読みやすいソースがそのまま出力されること
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
+
+    copyAssets(fixture.config);
+
+    const sourceJs = fs.readFileSync(path.join(process.cwd(), "templates", "assets", "main.js"), "utf-8");
+    const sourceCss = fs.readFileSync(path.join(process.cwd(), "templates", "assets", "main.css"), "utf-8");
+    expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.js"), "utf-8")).toBe(sourceJs);
+    expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.css"), "utf-8")).toBe(sourceCss);
+  });
+
+  it("build-theme/があればminify済み版を優先する", () => {
+    // npm run build で生成されたminify成果物が存在する場合はそちらを使うこと
+    fs.mkdirSync(buildThemeDir, { recursive: true });
+    fs.writeFileSync(path.join(buildThemeDir, "main.js"), "/*minified-js*/", "utf-8");
+    fs.writeFileSync(path.join(buildThemeDir, "main.css"), "/*minified-css*/", "utf-8");
+
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
+
+    copyAssets(fixture.config);
+
+    expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.js"), "utf-8")).toBe("/*minified-js*/");
+    expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.css"), "utf-8")).toBe("/*minified-css*/");
   });
 
   it("minisearch.min.jsをoutput/assetsへコピーする", () => {
