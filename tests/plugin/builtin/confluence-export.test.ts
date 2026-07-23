@@ -718,6 +718,58 @@ describe("confluence-export ビルトインプラグイン", () => {
     expect(createdBody).toContain("&lt;icon OK/&gt;");
   });
 
+  it("AdmonitionのasideはConfluenceのstructured-macroへ変換する", async () => {
+    // サイト用のaside.admonitionをStorage Formatのinfo/tip/note/warningマクロへ直す
+    let createdBody = "";
+    const fetchMock = vi.fn(async (urlArg: string | URL, init?: RequestInit) => {
+      const requestUrl = String(urlArg);
+      const method = init?.method;
+      if (method === undefined && requestUrl.includes("/rest/api/content?")) {
+        return new Response(JSON.stringify({ results: [] }), { status: 200 });
+      }
+      if (method === "POST" && requestUrl.endsWith("/rest/api/content")) {
+        const payload = JSON.parse(String(init!.body)) as { body: { storage: { value: string } } };
+        createdBody = payload.body.storage.value;
+        return new Response(JSON.stringify({ id: "999", version: { number: 1 } }), { status: 200 });
+      }
+      if (method === "POST" && requestUrl.endsWith("/property")) {
+        return new Response(JSON.stringify({ id: "property-1" }), { status: 200 });
+      }
+      throw new Error(`unexpected fetch call: ${method ?? "GET"} ${requestUrl}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const context = createContext();
+    // 実際のadmonitionプラグイン出力と同じ構造で、全タイプとカスタムタイトルを混ぜる
+    context.pages[0]!.contentHtml = [
+      '<aside class="admonition admonition-note"><p class="admonition-title">NOTE</p><div class="admonition-body">\n<p>note body</p>\n</div></aside>',
+      '<aside class="admonition admonition-info"><p class="admonition-title">INFO</p><div class="admonition-body">\n<p>info body</p>\n</div></aside>',
+      '<aside class="admonition admonition-tip"><p class="admonition-title">ヒント</p><div class="admonition-body">\n<p>tip body</p>\n</div></aside>',
+      '<aside class="admonition admonition-warning"><p class="admonition-title">WARNING</p><div class="admonition-body">\n<p>warning body</p>\n</div></aside>',
+      '<aside class="admonition admonition-danger"><p class="admonition-title">危険</p><div class="admonition-body">\n<p>danger body</p>\n</div></aside>'
+    ].join("\n");
+    const plugin = createConfluenceExportPlugin({
+      url: "https://example.atlassian.net/wiki",
+      username: "alice",
+      space: "DOCS"
+    });
+    process.env.CONFLUENCE_PASSWORD = "s3cr3t";
+
+    await expect(plugin.buildEnd?.(context)).resolves.toBeUndefined();
+    // 名前優先マッピング: note/info/tip/warningはそのまま、dangerはwarningへ
+    expect(createdBody).toContain('<ac:structured-macro ac:name="note">');
+    expect(createdBody).toContain('<ac:structured-macro ac:name="info">');
+    expect(createdBody).toContain('<ac:structured-macro ac:name="tip">');
+    expect(createdBody).toContain('<ac:parameter ac:name="title">ヒント</ac:parameter>');
+    expect(createdBody).toContain("<p>tip body</p>");
+    expect(createdBody).toContain('<ac:structured-macro ac:name="warning">');
+    expect(createdBody).toContain('<ac:parameter ac:name="title">危険</ac:parameter>');
+    expect(createdBody).toContain("<p>danger body</p>");
+    // サイト用のasideラッパーは残さない
+    expect(createdBody).not.toContain('class="admonition');
+    expect(createdBody).not.toContain("<aside");
+  });
+
   it("同名でも別ソースから作られたページしか無ければ既存ページを上書きせず新規作成する", async () => {
     // 同名ページが別ソースのものしか無い場合、タイトルではなくsourceKeyで新規ページを作る
     const createdBodies: string[] = [];

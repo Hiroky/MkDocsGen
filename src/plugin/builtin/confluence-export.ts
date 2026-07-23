@@ -473,9 +473,12 @@ async function prepareConfluenceBody(
   // allow_htmlで通過したHTML風の記述には、XHTML属性として不正な独自タグが
   // 含まれることがある。Confluenceへ送る前に、そのタグだけを文字列へ戻す
   const safeBodyHtml = escapeMalformedHtmlTags(bodyHtml);
+  // サイト用のaside.admonitionはConfluenceでは平文になるため、ネイティブマクロへ直す
+  // 画像変換より先に骨格を作り、本文内のローカル画像もac:image対象にする
+  const admonitionRewrittenHtml = rewriteAdmonitionsToMacros(safeBodyHtml);
   const { html: imagesRewrittenHtml, images } = sourcePath
-    ? rewriteLocalImages(safeBodyHtml, docsDirAbs, sourcePath)
-    : { html: safeBodyHtml, images: [] as LocalImageRef[] };
+    ? rewriteLocalImages(admonitionRewrittenHtml, docsDirAbs, sourcePath)
+    : { html: admonitionRewrittenHtml, images: [] as LocalImageRef[] };
   let htmlWithImageMetadata = imagesRewrittenHtml;
 
   // 画像本体を読み、次回以降の差分判定に使うSHA-256を計算する
@@ -489,6 +492,46 @@ async function prepareConfluenceBody(
   }
 
   return { value: toXhtmlVoidElements(htmlWithImageMetadata), images };
+}
+
+/** MkDocsGenのAdmonitionタイプ名をConfluenceマクロ名へ対応付ける */
+function mapAdmonitionTypeToMacro(type: string): string
+{
+  // 名前優先: note/info/tip/warningはそのまま。dangerマクロは無いのでwarningへ寄せる
+  if (type === "info" || type === "tip" || type === "note" || type === "warning") {
+    return type;
+  }
+  if (type === "danger") {
+    return "warning";
+  }
+  return "note";
+}
+
+/**
+ * サイト用aside.admonitionをConfluence Storage Formatのstructured-macroへ変換する
+ */
+function rewriteAdmonitionsToMacros(html: string): string
+{
+  // 現行のAdmonitionプラグインはネストしないため、非貪欲マッチでブロック単位に置換する
+  const admonitionPattern = /<aside\b[^>]*\bclass=(["'])[^"']*\badmonition\b[^"']*\1[^>]*>[\s\S]*?<\/aside>/gi;
+  return html.replace(admonitionPattern, (match) => {
+    // class内のadmonition-{type}からタイプを取り出す（無ければnote扱い）
+    const typeMatch = /\badmonition-([a-z0-9_-]+)\b/i.exec(match);
+    const type = (typeMatch?.[1] ?? "note").toLowerCase();
+    const macroName = mapAdmonitionTypeToMacro(type);
+
+    // タイトルはadmonition-title内のテキスト。描画時に既にエスケープ済みなので再エスケープしない
+    const titleMatch = /<p\b[^>]*\bclass=(["'])[^"']*\badmonition-title\b[^"']*\1[^>]*>([\s\S]*?)<\/p>/i.exec(match);
+    const titleText = titleMatch
+      ? titleMatch[2]!.replace(/<[^>]+>/g, "")
+      : escapeHtml(type.toUpperCase());
+
+    // 本文はadmonition-bodyの内側HTMLをそのままrich-text-bodyへ載せる
+    const bodyMatch = /<div\b[^>]*\bclass=(["'])[^"']*\badmonition-body\b[^"']*\1[^>]*>([\s\S]*?)<\/div>/i.exec(match);
+    const bodyHtml = bodyMatch?.[2] ?? "";
+
+    return `<ac:structured-macro ac:name="${macroName}"><ac:parameter ac:name="title">${titleText}</ac:parameter><ac:parameter ac:name="icon">true</ac:parameter><ac:rich-text-body>${bodyHtml}</ac:rich-text-body></ac:structured-macro>`;
+  });
 }
 
 /** 属性構文が不正なHTML風タグをエスケープし、ConfluenceのXHTMLパースエラーを防ぐ */
