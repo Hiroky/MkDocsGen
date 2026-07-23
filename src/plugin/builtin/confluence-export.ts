@@ -241,7 +241,7 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
       }
 
       // 全ページのIDが確定した後、サイト内相対リンクをConfluenceのページURLへ変換する
-      // フラグメントは通例の #id-[ページタイトル空白除去]-[見出し空白除去] に直すため、実タイトルと見出しも渡す
+      // フラグメントは #id?-[ページ]-[見出し] 形式（タイトル先頭が非英字なら id- 付き）に直すため、実タイトルと見出しも渡す
       const linkTargetsByOutputPath = new Map<string, ConfluenceLinkTarget>();
       for (const item of plan) {
         if (item.url === null) {
@@ -1012,12 +1012,12 @@ function resolveConfluenceHref(
   if (rawAnchor.length === 0) {
     return targetUrl;
   }
-  // Confluence通例: #id-[ページタイトル空白除去]-[見出しテキスト空白除去]
+  // Confluence通例: タイトル先頭が英字なら #[ページ]-[見出し]、日本語など非英字なら #id-[ページ]-[見出し]
   return `${targetUrl}#${buildConfluenceAnchorFragment(rawAnchor, target)}`;
 }
 
 /**
- * MarkdownのフラグメントをConfluenceの #id-[page]-[ID] 形式へ変換する
+ * MarkdownのフラグメントをConfluenceの見出しアンカー形式へ変換する
  */
 function buildConfluenceAnchorFragment(rawAnchor: string, target: ConfluenceLinkTarget): string
 {
@@ -1031,8 +1031,22 @@ function buildConfluenceAnchorFragment(rawAnchor: string, target: ConfluenceLink
   const pagePart = stripSpaces(target.title);
   // 既知の見出しがあれば見出し原文の空白除去、無ければslugをそのままIDにする
   const idPart = target.anchorsBySlug.get(slug) ?? slug;
-  // 通常のConfluenceページ見出しリンクは id-[ページ]-[見出し] 形式になる
-  return `id-${pagePart}-${idPart}`;
+  const fragment = `${pagePart}-${idPart}`;
+  // 実機ではページタイトル先頭が英字(A-Za-z)のとき id- が付かず、日本語など非英字のとき id- が付く
+  return needsConfluenceIdPrefix(pagePart) ? `id-${fragment}` : fragment;
+}
+
+/**
+ * Confluenceが見出しアンカーに id- 接頭辞を付ける対象か判定する
+ */
+function needsConfluenceIdPrefix(pageTitleWithoutSpaces: string): boolean
+{
+  const first = pageTitleWithoutSpaces[0];
+  if (first === undefined) {
+    return false;
+  }
+  // 先頭がASCII英字なら接頭辞なし。日本語・数字・記号などは id- 付き
+  return !/[A-Za-z]/.test(first);
 }
 
 /**

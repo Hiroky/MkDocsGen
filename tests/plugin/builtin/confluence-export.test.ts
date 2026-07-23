@@ -455,9 +455,9 @@ describe("confluence-export ビルトインプラグイン", () => {
 
     await expect(plugin.buildEnd?.(context)).resolves.toBeUndefined();
 
-    // フラグメントは Markdown slug のままではなく #id-Setup-Setup（通常Confluenceページ形式）になる
+    // 英字タイトル先頭のページは id- 無し（#Setup-Setup）
     expect(updatedBodies).toContain(
-      '<p><a href="https://example.atlassian.net/wiki/pages/viewpage.action?pageId=setup-1#id-Setup-Setup">本文リンク</a></p>' +
+      '<p><a href="https://example.atlassian.net/wiki/pages/viewpage.action?pageId=setup-1#Setup-Setup">本文リンク</a></p>' +
       '<nav class="toctree"><a href="https://example.atlassian.net/wiki/pages/viewpage.action?pageId=setup-1">tocリンク</a></nav>'
     );
     expect(updatedBodies).toContain(
@@ -467,6 +467,7 @@ describe("confluence-export ビルトインプラグイン", () => {
 
   it("同一ページ内の見出しリンクも#[ページタイトル]-[見出し]形式へ変換する", async () => {
     // Confluenceは見出しid属性を保存時に落とすため、フルURLフラグメントは通例どおりページ名接頭辞が必要
+    // タイトル先頭が日本語のときは実機どおり id- 接頭辞が付く
     const updatedBodies: string[] = [];
     const fetchMock = vi.fn(async (urlArg: string | URL, init?: RequestInit) => {
       const requestUrl = String(urlArg);
