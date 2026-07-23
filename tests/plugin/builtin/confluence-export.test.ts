@@ -455,9 +455,9 @@ describe("confluence-export ビルトインプラグイン", () => {
 
     await expect(plugin.buildEnd?.(context)).resolves.toBeUndefined();
 
-    // フラグメントは Markdown slug のままではなく #Setup-Setup（タイトル・見出しとも空白除去）になる
+    // フラグメントは Markdown slug のままではなく #id-Setup-Setup（通常Confluenceページ形式）になる
     expect(updatedBodies).toContain(
-      '<p><a href="https://example.atlassian.net/wiki/pages/viewpage.action?pageId=setup-1#Setup-Setup">本文リンク</a></p>' +
+      '<p><a href="https://example.atlassian.net/wiki/pages/viewpage.action?pageId=setup-1#id-Setup-Setup">本文リンク</a></p>' +
       '<nav class="toctree"><a href="https://example.atlassian.net/wiki/pages/viewpage.action?pageId=setup-1">tocリンク</a></nav>'
     );
     expect(updatedBodies).toContain(
@@ -509,7 +509,7 @@ describe("confluence-export ビルトインプラグイン", () => {
     await expect(plugin.buildEnd?.(context)).resolves.toBeUndefined();
     expect(updatedBodies).toContain(
       '<h2 id="セットアップ手順">セットアップ手順</h2>' +
-      '<p><a href="https://example.atlassian.net/wiki/pages/viewpage.action?pageId=home-1#導入ガイド-セットアップ手順">手順へ</a></p>'
+      '<p><a href="https://example.atlassian.net/wiki/pages/viewpage.action?pageId=home-1#id-導入ガイド-セットアップ手順">手順へ</a></p>'
     );
   });
 

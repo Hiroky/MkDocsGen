@@ -241,7 +241,7 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
       }
 
       // 全ページのIDが確定した後、サイト内相対リンクをConfluenceのページURLへ変換する
-      // フラグメントは通例の #[ページタイトル空白除去]-[見出し空白除去] に直すため、実タイトルと見出しも渡す
+      // フラグメントは通例の #id-[ページタイトル空白除去]-[見出し空白除去] に直すため、実タイトルと見出しも渡す
       const linkTargetsByOutputPath = new Map<string, ConfluenceLinkTarget>();
       for (const item of plan) {
         if (item.url === null) {
@@ -1012,12 +1012,12 @@ function resolveConfluenceHref(
   if (rawAnchor.length === 0) {
     return targetUrl;
   }
-  // Confluence通例: #[ページタイトル空白除去]-[見出しテキスト空白除去]
+  // Confluence通例: #id-[ページタイトル空白除去]-[見出しテキスト空白除去]
   return `${targetUrl}#${buildConfluenceAnchorFragment(rawAnchor, target)}`;
 }
 
 /**
- * MarkdownのフラグメントをConfluenceの #[page]-[ID] 形式へ変換する
+ * MarkdownのフラグメントをConfluenceの #id-[page]-[ID] 形式へ変換する
  */
 function buildConfluenceAnchorFragment(rawAnchor: string, target: ConfluenceLinkTarget): string
 {
@@ -1031,7 +1031,8 @@ function buildConfluenceAnchorFragment(rawAnchor: string, target: ConfluenceLink
   const pagePart = stripSpaces(target.title);
   // 既知の見出しがあれば見出し原文の空白除去、無ければslugをそのままIDにする
   const idPart = target.anchorsBySlug.get(slug) ?? slug;
-  return `${pagePart}-${idPart}`;
+  // 通常のConfluenceページ見出しリンクは id-[ページ]-[見出し] 形式になる
+  return `id-${pagePart}-${idPart}`;
 }
 
 /**
