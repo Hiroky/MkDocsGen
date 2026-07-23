@@ -700,10 +700,117 @@
     });
   }
 
+  /**
+   * 本文画像のクリック拡大（ライトボックス）を初期化する
+   */
+  function initImageLightbox() {
+    const dialog = document.querySelector("[data-image-lightbox]");
+    const dialogImage = document.querySelector("[data-lightbox-image]");
+    const dialogCaption = document.querySelector("[data-lightbox-caption]");
+    const closeButton = document.querySelector("[data-lightbox-close]");
+    if (!dialog || !dialogImage || !dialogCaption || !closeButton) {
+      return;
+    }
+
+    // 閉じたあとにフォーカスを戻す対象（開いたときにセットする）
+    let restoreTarget = null;
+
+    /**
+     * 指定画像をライトボックスで開く
+     */
+    function openLightbox(sourceImg) {
+      // 拡大表示用に元画像のsrcとaltをコピーする
+      dialogImage.setAttribute("src", sourceImg.getAttribute("src") || "");
+      const alt = sourceImg.getAttribute("alt") || "";
+      dialogImage.setAttribute("alt", alt);
+      // altがあればキャプション表示、空なら隠す
+      if (alt) {
+        dialogCaption.textContent = alt;
+        dialogCaption.hidden = false;
+      } else {
+        dialogCaption.textContent = "";
+        dialogCaption.hidden = true;
+      }
+      restoreTarget = sourceImg;
+      if (typeof dialog.showModal === "function") {
+        dialog.showModal();
+      }
+      // 開いた直後は閉じるボタンへフォーカスを移す
+      closeButton.focus();
+    }
+
+    /**
+     * ライトボックスを閉じる
+     */
+    function closeLightbox() {
+      if (typeof dialog.close === "function" && dialog.open) {
+        dialog.close();
+      }
+    }
+
+    // リンクなしの本文画像だけを拡大対象にする（リンク付きは通常遷移）
+    document.querySelectorAll(".page-body img").forEach((img) => {
+      if (img.closest("a[href]")) {
+        return;
+      }
+      img.classList.add("image-zoomable");
+      img.setAttribute("tabindex", "0");
+      img.setAttribute("role", "button");
+      // スクリーンリーダー向けに拡大できることを伝える
+      const alt = img.getAttribute("alt") || "";
+      img.setAttribute("aria-label", alt ? `${alt}（クリックで拡大）` : "画像を拡大表示");
+
+      img.addEventListener("click", () => {
+        openLightbox(img);
+      });
+
+      // キーボードでも開けるようにする（Enter / Space）
+      img.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openLightbox(img);
+        }
+      });
+    });
+
+    // 閉じるボタン
+    closeButton.addEventListener("click", () => {
+      closeLightbox();
+    });
+
+    // backdrop（dialog本体）クリックで閉じる。中身クリックは閉じない
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) {
+        closeLightbox();
+      }
+    });
+
+    // ネイティブEscape閉じとドロワーの二重閉じを防ぐ
+    dialog.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+      }
+    });
+
+    // 閉じたあとに元画像へフォーカスを戻す
+    dialog.addEventListener("close", () => {
+      if (restoreTarget && typeof restoreTarget.focus === "function") {
+        restoreTarget.focus();
+      }
+      restoreTarget = null;
+      // 次に開くまでの間、大きな画像をメモリに残さない
+      dialogImage.removeAttribute("src");
+      dialogImage.setAttribute("alt", "");
+      dialogCaption.textContent = "";
+      dialogCaption.hidden = true;
+    });
+  }
+
   initThemeToggle();
   initSidebarToggles();
   initDrawer();
   initTocSpy();
   initCodeCopy();
   initSearch();
+  initImageLightbox();
 })();

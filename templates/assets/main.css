@@ -145,7 +145,7 @@ a:hover {
 }
 
 /* キーボードフォーカス時だけリングを出し、マウス操作では出さない */
-:where(a, button, summary, .nav-link, .toc-link, .theme-toggle, .menu-toggle, .search-input):focus-visible {
+:where(a, button, summary, .nav-link, .toc-link, .theme-toggle, .menu-toggle, .search-input, .image-zoomable, .image-lightbox-close):focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
@@ -1042,6 +1042,103 @@ html[data-theme="dark"] .admonition-danger .admonition-title {
   max-width: 100%;
   height: auto;
   border-radius: var(--radius-md);
+}
+
+/* リンクなし画像はクリックで拡大できることをカーソルで示す */
+.page-body img.image-zoomable {
+  cursor: zoom-in;
+}
+
+/* ---------------------------------------------------------------- */
+/* 画像ライトボックス: 本文画像の拡大表示ダイアログ                       */
+/* ---------------------------------------------------------------- */
+
+.image-lightbox {
+  position: relative;
+  max-width: min(96vw, 1100px);
+  max-height: 92vh;
+  margin: auto;
+  padding: 1.25rem 1.25rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-shadow: var(--shadow-lg);
+  overflow: auto;
+}
+
+.image-lightbox::backdrop {
+  background: var(--color-overlay);
+}
+
+/* 開閉の軽いフェード（対応ブラウザのみ） */
+.image-lightbox[open] {
+  animation: image-lightbox-in 0.18s ease-out;
+}
+
+@keyframes image-lightbox-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.image-lightbox-close {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.image-lightbox-close:hover {
+  color: var(--color-text);
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+}
+
+/* 閉じるアイコン（×）をmaskで描画する */
+.image-lightbox-close::before {
+  content: "";
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  background: currentColor;
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>') center / contain no-repeat;
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>') center / contain no-repeat;
+}
+
+.image-lightbox-image {
+  display: block;
+  max-width: 100%;
+  max-height: calc(92vh - 4.5rem);
+  width: auto;
+  height: auto;
+  margin: 0.5rem auto 0;
+  border-radius: var(--radius-md);
+}
+
+.image-lightbox-caption {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.image-lightbox-caption[hidden] {
+  display: none;
 }
 
 /* ---------------------------------------------------------------- */

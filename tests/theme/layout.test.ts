@@ -44,4 +44,15 @@ describe("theme layout sticky columns", () => {
     expect(css).toContain(".page-body.pydoc-page p:has(> strong:only-child)");
     expect(css).not.toContain(".page-body p:has(> strong:only-child)");
   });
+
+  it("画像ライトボックスと拡大可能画像のスタイルを定義する", () => {
+    // クリック拡大対象のカーソルとdialogオーバーレイがテーマに含まれること
+    const css = fs.readFileSync(CSS_PATH, "utf-8");
+    const zoomable = extractRuleBody(css, ".page-body img.image-zoomable");
+    expect(zoomable).toContain("cursor: zoom-in");
+
+    expect(css).toContain(".image-lightbox");
+    expect(css).toContain(".image-lightbox::backdrop");
+    expect(css).toContain("var(--color-overlay)");
+  });
 });

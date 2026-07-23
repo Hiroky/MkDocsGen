@@ -106,4 +106,32 @@ describe("theme a11y markup", () => {
     const css = fs.readFileSync(path.join(ASSETS_DIR, "main.css"), "utf-8");
     expect(css).toContain(":focus-visible");
   });
+
+  it("画像ライトボックス用のdialogマークアップがレンダリング結果に含まれる", () => {
+    // 本文画像の拡大表示用dialogと閉じるボタンが全ページに埋め込まれること
+    const fixture = createRenderFixture();
+    cleanups.push(fixture.cleanup);
+    const page = createTestPage({ contentHtml: "<p>Body</p>" });
+    const renderer = new Renderer(fixture.config);
+    const html = renderer.renderPage(page, createTestContext(fixture.config, [page], []));
+
+    expect(html).toContain("data-image-lightbox");
+    expect(html).toContain("data-lightbox-close");
+    expect(html).toContain("data-lightbox-image");
+    expect(html).toContain("data-lightbox-caption");
+    expect(html).toContain('aria-label="画像の拡大表示"');
+  });
+
+  it("main.jsがリンクなし画像だけライトボックスを開きEscapeでドロワーと二重閉じしない", () => {
+    // リンク付き画像は通常遷移、リンクなしはshowModal。閉じた後は元画像へフォーカス復帰
+    const mainJs = fs.readFileSync(path.join(ASSETS_DIR, "main.js"), "utf-8");
+    expect(mainJs).toContain("initImageLightbox");
+    expect(mainJs).toContain('closest("a[href]")');
+    expect(mainJs).toContain("showModal");
+    expect(mainJs).toContain("image-zoomable");
+    // ライトボックス内Escapeは伝播を止め、ドロワーと同時に閉じない
+    expect(mainJs).toMatch(/initImageLightbox[\s\S]*Escape[\s\S]*stopPropagation/);
+    // 閉じたあとに元画像へフォーカスを戻す
+    expect(mainJs).toMatch(/initImageLightbox[\s\S]*\.focus\(/);
+  });
 });

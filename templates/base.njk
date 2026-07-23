@@ -52,6 +52,12 @@
   {# ページ送りとフッターはレイアウトの外に置き、ビューポート全幅の帯として表示する #}
   {% include "partials/prev-next.njk" %}
   {% include "partials/footer.njk" %}
+  {# 本文画像のクリック拡大用。リンク付き画像は対象外（JS側で判定） #}
+  <dialog class="image-lightbox" data-image-lightbox aria-label="画像の拡大表示">
+    <button type="button" class="image-lightbox-close" data-lightbox-close aria-label="閉じる"></button>
+    <img class="image-lightbox-image" data-lightbox-image alt="">
+    <p class="image-lightbox-caption" data-lightbox-caption hidden></p>
+  </dialog>
   <script src="{{ root }}assets/mermaid.min.js" defer></script>
   <script src="{{ root }}assets/main.js" defer></script>
   {% block scripts %}{% endblock %}
