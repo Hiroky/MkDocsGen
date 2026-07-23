@@ -11,6 +11,7 @@ describe("コードブロック / Shiki / Mermaid", () => {
     expect(html).toContain('class="code-block"');
     expect(html).toContain("data-code-copy");
     expect(html).toContain('data-code-copy="true"');
+    expect(html).toContain('data-code-lang="ts"');
     expect(html).not.toContain("data-code-copy data-code=");
     expect(html).toContain("shiki");
     expect(html).toContain("--shiki-");
@@ -24,6 +25,7 @@ describe("コードブロック / Shiki / Mermaid", () => {
 
     expect(html).toContain('class="code-block"');
     expect(html).toContain("data-code-copy");
+    expect(html).not.toContain("data-code-lang");
     expect(html).toContain("<pre><code>");
     expect(html).toContain("plain text");
     expect(html).not.toContain("shiki");

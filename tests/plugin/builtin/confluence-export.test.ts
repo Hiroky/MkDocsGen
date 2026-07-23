@@ -439,6 +439,8 @@ describe("confluence-export ビルトインプラグイン", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const context = createNestedContext();
+    // 対象ページの見出しslugから、Confluence通例の #[ページ]-[見出し] へ変換できるよう見出しを渡す
+    context.pages[1]!.headings = [{ level: 2, text: "Setup", anchorId: "setup" }];
     context.pages[0]!.contentHtml =
       '<p><a href="setup.html#setup">本文リンク</a></p>' +
       '<nav class="toctree"><a href="setup.html">tocリンク</a></nav>';
@@ -453,13 +455,109 @@ describe("confluence-export ビルトインプラグイン", () => {
 
     await expect(plugin.buildEnd?.(context)).resolves.toBeUndefined();
 
+    // フラグメントは Markdown slug のままではなく #Setup-Setup（タイトル・見出しとも空白除去）になる
     expect(updatedBodies).toContain(
-      '<p><a href="https://example.atlassian.net/wiki/pages/viewpage.action?pageId=setup-1#setup">本文リンク</a></p>' +
+      '<p><a href="https://example.atlassian.net/wiki/pages/viewpage.action?pageId=setup-1#Setup-Setup">本文リンク</a></p>' +
       '<nav class="toctree"><a href="https://example.atlassian.net/wiki/pages/viewpage.action?pageId=setup-1">tocリンク</a></nav>'
     );
     expect(updatedBodies).toContain(
       '<p><a href="https://example.atlassian.net/wiki/pages/viewpage.action?pageId=guide-1">戻る</a></p>'
     );
+  });
+
+  it("同一ページ内の見出しリンクも#[ページタイトル]-[見出し]形式へ変換する", async () => {
+    // Confluenceは見出しid属性を保存時に落とすため、フルURLフラグメントは通例どおりページ名接頭辞が必要
+    const updatedBodies: string[] = [];
+    const fetchMock = vi.fn(async (urlArg: string | URL, init?: RequestInit) => {
+      const requestUrl = String(urlArg);
+      const method = init?.method;
+      if (method === undefined && requestUrl.includes("/rest/api/content?")) {
+        return new Response(JSON.stringify({ results: [] }), { status: 200 });
+      }
+      if (method === "POST" && requestUrl.endsWith("/rest/api/content")) {
+        return new Response(JSON.stringify({ id: "home-1", version: { number: 1 } }), { status: 200 });
+      }
+      if (method === "POST" && requestUrl.endsWith("/property")) {
+        return new Response(JSON.stringify({ id: "prop-1" }), { status: 200 });
+      }
+      if (method === "PUT") {
+        const payload = JSON.parse(String(init!.body)) as { body: { storage: { value: string } } };
+        updatedBodies.push(payload.body.storage.value);
+        return new Response(JSON.stringify({ id: "updated", version: { number: 2 } }), { status: 200 });
+      }
+      throw new Error(`unexpected fetch call: ${method ?? "GET"} ${requestUrl}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const context = createContext();
+    context.pages[0]!.title = "導入ガイド";
+    context.nav[0]!.title = "導入ガイド";
+    context.pages[0]!.headings = [
+      { level: 2, text: "セットアップ手順", anchorId: "セットアップ手順" }
+    ];
+    context.pages[0]!.contentHtml =
+      '<h2 id="セットアップ手順">セットアップ手順</h2>' +
+      '<p><a href="#セットアップ手順">手順へ</a></p>';
+
+    const plugin = createConfluenceExportPlugin({
+      url: "https://example.atlassian.net/wiki",
+      username: "alice",
+      space: "DOCS"
+    });
+    process.env.CONFLUENCE_PASSWORD = "s3cr3t";
+
+    await expect(plugin.buildEnd?.(context)).resolves.toBeUndefined();
+    expect(updatedBodies).toContain(
+      '<h2 id="セットアップ手順">セットアップ手順</h2>' +
+      '<p><a href="https://example.atlassian.net/wiki/pages/viewpage.action?pageId=home-1#導入ガイド-セットアップ手順">手順へ</a></p>'
+    );
+  });
+
+  it("サイト用code-blockはConfluenceのcodeマクロへ変換する", async () => {
+    // Shiki/Copyボタン付きのサイトHTMLはStorage Formatでは正しく描画されないため、ネイティブcodeマクロへ直す
+    let createdBody = "";
+    const fetchMock = vi.fn(async (urlArg: string | URL, init?: RequestInit) => {
+      const requestUrl = String(urlArg);
+      const method = init?.method;
+      if (method === undefined && requestUrl.includes("/rest/api/content?")) {
+        return new Response(JSON.stringify({ results: [] }), { status: 200 });
+      }
+      if (method === "POST" && requestUrl.endsWith("/rest/api/content")) {
+        const payload = JSON.parse(String(init!.body)) as { body: { storage: { value: string } } };
+        createdBody = payload.body.storage.value;
+        return new Response(JSON.stringify({ id: "999", version: { number: 1 } }), { status: 200 });
+      }
+      if (method === "POST" && requestUrl.endsWith("/property")) {
+        return new Response(JSON.stringify({ id: "property-1" }), { status: 200 });
+      }
+      throw new Error(`unexpected fetch call: ${method ?? "GET"} ${requestUrl}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const context = createContext();
+    // data-code に生コード、data-code-lang に言語。Shiki span や Copy ボタンは捨てる
+    context.pages[0]!.contentHtml =
+      '<div class="code-block">' +
+      '<button type="button" class="code-copy" data-code-copy="true" data-code-lang="ts" data-code="const x = 1;\nif (x &lt; 2) {}\nconst s = &quot;]]&gt;&quot;;">Copy</button>' +
+      '<pre class="shiki"><code><span style="color:red">const x = 1;</span></code></pre>' +
+      "</div>";
+    const plugin = createConfluenceExportPlugin({
+      url: "https://example.atlassian.net/wiki",
+      username: "alice",
+      space: "DOCS"
+    });
+    process.env.CONFLUENCE_PASSWORD = "s3cr3t";
+
+    await expect(plugin.buildEnd?.(context)).resolves.toBeUndefined();
+    expect(createdBody).toContain('<ac:structured-macro ac:name="code">');
+    expect(createdBody).toContain('<ac:parameter ac:name="language">typescript</ac:parameter>');
+    // CDATA内はエンティティではなく生の < と ]]> 分割で安全に載せる
+    expect(createdBody).toContain("<![CDATA[");
+    expect(createdBody).toContain("const x = 1;\nif (x < 2) {}");
+    expect(createdBody).toContain("]]]]><![CDATA[>");
+    expect(createdBody).not.toContain('class="code-block"');
+    expect(createdBody).not.toContain("data-code-copy");
+    expect(createdBody).not.toContain('style="color:red"');
   });
 
   it("homeAsRoot:trueならHome以外のトップレベル項目がHomeの子になる", async () => {

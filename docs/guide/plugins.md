@@ -40,7 +40,7 @@ plugins:
 
 ページの更新対象はタイトルではなく、ページに保存する `mkdocsgen-source-key` プロパティで判定します。同じタイトルの別ページや、このプロパティを持たない既存ページは上書きしません。同名ページがある場合は、まず親階層を付けたタイトル（例: `Setup（Guide）`）、それでも衝突する場合はソースパスを付けたタイトル（例: `Setup（guide/setup.md）`）で新規作成します。作成後はそのタイトルをsourceKeyと組み合わせて再利用するため、次回以降は同じページを更新できます。
 
-本文と `toctree` のページ間相対リンクは、全ページのConfluenceページID確定後に `pages/viewpage.action?pageId=...` 形式へ変換します。見出しアンカー（`#section`）も保持されます。画像は従来どおりConfluence添付ファイル参照へ変換されます。
+本文と `toctree` のページ間相対リンクは、全ページのConfluenceページID確定後に `pages/viewpage.action?pageId=...` 形式へ変換します。見出しアンカーは Confluence 通例の `#[ページタイトル空白除去]-[見出しテキスト空白除去]` 形式へ変換します（Markdown の slug のままでは遷移しません）。フェンス付きコードブロックはサイト用の `div.code-block`（Copyボタン / Shiki）から、Storage Format の `code` マクロ（`ac:plain-text-body` + CDATA）へ変換します。画像は従来どおりConfluence添付ファイル参照へ変換されます。
 
 生成後のStorage Format本文全体のSHA-256をConfluenceのコンテンツプロパティへ保存し、次回の生成結果と一致するページはページ本文の更新API（PUT）をスキップします。Confluence保存時のHTML正規化による見かけ上の差分に影響されず、変更のないページではバージョンを増やしません。
 

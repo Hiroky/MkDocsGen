@@ -110,25 +110,27 @@ function renderFence(md: MarkdownIt, token: Token, highlighter: Awaited<ReturnTy
   // 言語なしはプレーンテキストとして描画する（Shikiを通さない）
   if (lang.length === 0) {
     const plain = `<pre><code>${md.utils.escapeHtml(code)}</code></pre>\n`;
-    return wrapCodeBlock(md, plain, code);
+    return wrapCodeBlock(md, plain, code, "");
   }
 
   // 言語ありはShiki dual theme HTMLへ変換する
   const highlighted = highlightCode(highlighter, code, lang);
-  return wrapCodeBlock(md, highlighted + "\n", code);
+  return wrapCodeBlock(md, highlighted + "\n", code, lang);
 }
 
 /**
  * コードブロックをコピーボタン付きラッパで囲む
  */
-function wrapCodeBlock(md: MarkdownIt, innerHtml: string, rawCode: string): string
+function wrapCodeBlock(md: MarkdownIt, innerHtml: string, rawCode: string, lang: string): string
 {
   // 末尾改行はクリップボード用データから除く
   const forCopy = rawCode.replace(/\n$/, "");
   const escaped = md.utils.escapeHtml(forCopy);
   // Confluence Storage FormatはXML属性の値省略を許さないため、
-  // HTMLでは真偽属性として書けるdata-code-copyにも明示的な値を付ける
-  return `<div class="code-block"><button type="button" class="code-copy" data-code-copy="true" data-code="${escaped}">Copy</button>${innerHtml}</div>\n`;
+  // HTMLでは真偽属性として書けるdata-code-copyにも明示的な値を付ける。
+  // data-code-langはShiki HTMLに言語情報が残らないため、Confluenceエクスポート用に保持する
+  const langAttr = lang.length > 0 ? ` data-code-lang="${md.utils.escapeHtml(lang)}"` : "";
+  return `<div class="code-block"><button type="button" class="code-copy" data-code-copy="true"${langAttr} data-code="${escaped}">Copy</button>${innerHtml}</div>\n`;
 }
 
 /**

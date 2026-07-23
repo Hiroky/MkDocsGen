@@ -74,6 +74,14 @@ interface ConfluencePageInfo {
   skippedImageCount: number;
 }
 
+/** 相対リンク解決用。ページIDとConfluence実タイトル・見出しアンカー対応 */
+interface ConfluenceLinkTarget {
+  pageId: string;
+  title: string;
+  /** Markdownの見出しslug → ConfluenceアンカーID（見出しテキストの空白除去） */
+  anchorsBySlug: Map<string, string>;
+}
+
 /** Confluenceに保存する画像ハッシュプロパティの情報 */
 interface ConfluenceImageHashProperty {
   id: string;
@@ -233,15 +241,22 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
       }
 
       // 全ページのIDが確定した後、サイト内相対リンクをConfluenceのページURLへ変換する
-      const pageIdsByOutputPath = new Map<string, string>();
+      // フラグメントは通例の #[ページタイトル空白除去]-[見出し空白除去] に直すため、実タイトルと見出しも渡す
+      const linkTargetsByOutputPath = new Map<string, ConfluenceLinkTarget>();
       for (const item of plan) {
         if (item.url === null) {
           continue;
         }
         const pageInfo = pageInfos.get(item.key);
-        if (pageInfo !== undefined) {
-          pageIdsByOutputPath.set(item.url, pageInfo.pageId);
+        if (pageInfo === undefined) {
+          continue;
         }
+        const page = context.pages.find((p) => p.outputPath === item.url);
+        linkTargetsByOutputPath.set(item.url, {
+          pageId: pageInfo.pageId,
+          title: pageInfo.title,
+          anchorsBySlug: buildAnchorsBySlug(page)
+        });
       }
 
       for (const exported of exportedBodies) {
@@ -255,7 +270,7 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
         const rewrittenBody = rewriteConfluenceLinks(
           exported.bodyHtml,
           exported.item.url,
-          pageIdsByOutputPath,
+          linkTargetsByOutputPath,
           url
         );
         const finalBodyValue = (await prepareConfluenceBody(
@@ -473,9 +488,12 @@ async function prepareConfluenceBody(
   // allow_htmlで通過したHTML風の記述には、XHTML属性として不正な独自タグが
   // 含まれることがある。Confluenceへ送る前に、そのタグだけを文字列へ戻す
   const safeBodyHtml = escapeMalformedHtmlTags(bodyHtml);
+  // サイト用のcode-block（Copyボタン+Shiki）はConfluenceでは描画されないため、
+  // ネイティブのcodeマクロへ直す。Admonition内のコードもマクロになるよう先に変換する
+  const codeRewrittenHtml = rewriteCodeBlocksToMacros(safeBodyHtml);
   // サイト用のaside.admonitionはConfluenceでは平文になるため、ネイティブマクロへ直す
   // 画像変換より先に骨格を作り、本文内のローカル画像もac:image対象にする
-  const admonitionRewrittenHtml = rewriteAdmonitionsToMacros(safeBodyHtml);
+  const admonitionRewrittenHtml = rewriteAdmonitionsToMacros(codeRewrittenHtml);
   const { html: imagesRewrittenHtml, images } = sourcePath
     ? rewriteLocalImages(admonitionRewrittenHtml, docsDirAbs, sourcePath)
     : { html: admonitionRewrittenHtml, images: [] as LocalImageRef[] };
@@ -532,6 +550,88 @@ function rewriteAdmonitionsToMacros(html: string): string
 
     return `<ac:structured-macro ac:name="${macroName}"><ac:parameter ac:name="title">${titleText}</ac:parameter><ac:parameter ac:name="icon">true</ac:parameter><ac:rich-text-body>${bodyHtml}</ac:rich-text-body></ac:structured-macro>`;
   });
+}
+
+/** フェンス言語の短縮名をConfluence codeマクロが認識しやすい名前へ寄せる */
+const CODE_LANGUAGE_ALIASES: Record<string, string> = {
+  ts: "typescript",
+  tsx: "typescript",
+  js: "javascript",
+  jsx: "javascript",
+  py: "python",
+  sh: "bash",
+  shell: "bash",
+  yml: "yaml",
+  md: "markdown",
+  plaintext: "none",
+  text: "none"
+};
+
+/**
+ * サイト用div.code-blockをConfluence Storage Formatのcodeマクロへ変換する
+ */
+function rewriteCodeBlocksToMacros(html: string): string
+{
+  // 現行のフェンス出力はネストしたdiv.code-blockを持たないため、非貪欲マッチでブロック単位に置換する
+  const codeBlockPattern = /<div\b[^>]*\bclass=(["'])[^"']*\bcode-block\b[^"']*\1[^>]*>[\s\S]*?<\/div>/gi;
+  return html.replace(codeBlockPattern, (match) => {
+    // 生コードはコピーボタンのdata-codeにHTMLエスケープ済みで載っている（Shikiのspanは捨てる）
+    const rawCodeAttr = extractHtmlAttribute(match, "data-code");
+    const code = unescapeHtml(rawCodeAttr ?? "");
+    // 言語はdata-code-lang（convert.tsが付与）。無ければlanguageパラメータ自体を省略する
+    const rawLang = (extractHtmlAttribute(match, "data-code-lang") ?? "").trim().toLowerCase();
+    const language = mapCodeLanguage(rawLang);
+    const languageParam = language.length > 0
+      ? `<ac:parameter ac:name="language">${escapeHtml(language)}</ac:parameter>`
+      : "";
+    // CDATA内の ]]> は分割して、XMLパーサが本文途中で閉じないようにする
+    const cdataBody = escapeCdata(code);
+    return `<ac:structured-macro ac:name="code">${languageParam}<ac:plain-text-body><![CDATA[${cdataBody}]]></ac:plain-text-body></ac:structured-macro>`;
+  });
+}
+
+/**
+ * フェンス言語名をConfluence codeマクロ向けに正規化する
+ */
+function mapCodeLanguage(lang: string): string
+{
+  if (lang.length === 0) {
+    return "";
+  }
+  return CODE_LANGUAGE_ALIASES[lang] ?? lang;
+}
+
+/**
+ * HTML開始タグ断片から指定属性値を取り出す（値内の改行も許容する）
+ */
+function extractHtmlAttribute(html: string, name: string): string | null
+{
+  // 属性値は引用符で囲まれ、中身の生の引用符はエンティティ化済みである前提
+  const pattern = new RegExp(`\\b${name}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, "i");
+  const matched = pattern.exec(html);
+  return matched?.[2] ?? null;
+}
+
+/**
+ * CDATAセクション内で ]]> が出現しても壊れないよう分割エスケープする
+ */
+function escapeCdata(text: string): string
+{
+  return text.replace(/]]>/g, "]]]]><![CDATA[>");
+}
+
+/**
+ * HTMLエンティティを元の文字へ戻す（data-codeの復元用）
+ */
+function unescapeHtml(text: string): string
+{
+  // &amp; は他エンティティの一部になり得るため最後に戻す
+  return text
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
 }
 
 /** 属性構文が不正なHTML風タグをエスケープし、ConfluenceのXHTMLパースエラーを防ぐ */
@@ -854,14 +954,14 @@ async function updateConfluencePageBody(args: {
 function rewriteConfluenceLinks(
   html: string,
   fromOutputPath: string,
-  pageIdsByOutputPath: Map<string, string>,
+  linkTargetsByOutputPath: Map<string, ConfluenceLinkTarget>,
   baseUrl: string
 ): string
 {
   return html.replace(
     /(<a\b[^>]*\bhref\s*=\s*)(["'])([^"']*)(\2)/gi,
     (match, prefix: string, quote: string, href: string) => {
-      const confluenceHref = resolveConfluenceHref(href, fromOutputPath, pageIdsByOutputPath, baseUrl);
+      const confluenceHref = resolveConfluenceHref(href, fromOutputPath, linkTargetsByOutputPath, baseUrl);
       if (confluenceHref === null) {
         return match;
       }
@@ -876,7 +976,7 @@ function rewriteConfluenceLinks(
 function resolveConfluenceHref(
   href: string,
   fromOutputPath: string,
-  pageIdsByOutputPath: Map<string, string>,
+  linkTargetsByOutputPath: Map<string, ConfluenceLinkTarget>,
   baseUrl: string
 ): string | null
 {
@@ -894,7 +994,7 @@ function resolveConfluenceHref(
   } catch {
     // 不正なエンコードは元の文字列で照合し、対象外ならリンクを変更しない
   }
-  const anchor = hashIndex === -1 ? "" : href.slice(hashIndex + 1);
+  const rawAnchor = hashIndex === -1 ? "" : href.slice(hashIndex + 1);
   const fromDir = path.posix.dirname(fromOutputPath);
   const joinedPath = pathPart.length === 0
     ? fromOutputPath
@@ -904,12 +1004,78 @@ function resolveConfluenceHref(
     targetPath = targetPath.replace(/\.md$/, ".html");
   }
 
-  const pageId = pageIdsByOutputPath.get(targetPath);
-  if (pageId === undefined) {
+  const target = linkTargetsByOutputPath.get(targetPath);
+  if (target === undefined) {
     return null;
   }
-  const targetUrl = `${baseUrl}/pages/viewpage.action?pageId=${encodeURIComponent(pageId)}`;
-  return anchor.length > 0 ? `${targetUrl}#${anchor}` : targetUrl;
+  const targetUrl = `${baseUrl}/pages/viewpage.action?pageId=${encodeURIComponent(target.pageId)}`;
+  if (rawAnchor.length === 0) {
+    return targetUrl;
+  }
+  // Confluence通例: #[ページタイトル空白除去]-[見出しテキスト空白除去]
+  return `${targetUrl}#${buildConfluenceAnchorFragment(rawAnchor, target)}`;
+}
+
+/**
+ * MarkdownのフラグメントをConfluenceの #[page]-[ID] 形式へ変換する
+ */
+function buildConfluenceAnchorFragment(rawAnchor: string, target: ConfluenceLinkTarget): string
+{
+  let slug = rawAnchor;
+  try {
+    // パーセントエンコードされた日本語アンカーも見出しslugと照合できるようにする
+    slug = decodeURIComponent(rawAnchor);
+  } catch {
+    // 不正なエンコードはそのまま扱い、未解決時フォールバックに使う
+  }
+  const pagePart = stripSpaces(target.title);
+  // 既知の見出しがあれば見出し原文の空白除去、無ければslugをそのままIDにする
+  const idPart = target.anchorsBySlug.get(slug) ?? slug;
+  return `${pagePart}-${idPart}`;
+}
+
+/**
+ * ページの見出し情報から、Markdown slug → ConfluenceアンカーIDの対応表を作る
+ */
+function buildAnchorsBySlug(page: Page | undefined): Map<string, string>
+{
+  const anchorsBySlug = new Map<string, string>();
+  if (page === undefined) {
+    return anchorsBySlug;
+  }
+
+  // 目次用headings（h2〜）を先に登録する
+  for (const heading of page.headings) {
+    anchorsBySlug.set(heading.anchorId, stripSpaces(heading.text));
+  }
+
+  // h1などheadingsに含まれない見出しは本文HTMLから補完する
+  const headingPattern = /<h([1-6])\b([^>]*)>([\s\S]*?)<\/h\1>/gi;
+  let matched: RegExpExecArray | null;
+  while ((matched = headingPattern.exec(page.contentHtml)) !== null) {
+    const attrs = matched[2] ?? "";
+    const idMatch = /\bid\s*=\s*(["'])([^"']*)\1/i.exec(attrs);
+    if (idMatch === null) {
+      continue;
+    }
+    const slug = idMatch[2]!;
+    if (anchorsBySlug.has(slug)) {
+      continue;
+    }
+    // タグを除いた見出しテキストを空白除去してアンカーIDにする
+    const text = (matched[3] ?? "").replace(/<[^>]+>/g, "");
+    anchorsBySlug.set(slug, stripSpaces(text));
+  }
+
+  return anchorsBySlug;
+}
+
+/**
+ * Confluenceのページ／見出しアンカー用に空白類を除去する
+ */
+function stripSpaces(text: string): string
+{
+  return text.replace(/\s+/g, "");
 }
 
 /**
