@@ -94,6 +94,8 @@ describe("theme a11y markup", () => {
     expect(html).toContain("assets/fonts/inter-latin-wght-normal.woff2");
     expect(html).toContain("assets/fonts/jetbrains-mono-latin-wght-normal.woff2");
     expect(html).toMatch(/as="font"[^>]*type="font\/woff2"|type="font\/woff2"[^>]*as="font"/);
+    // file://ではcrossorigin付きCORS fetchが失敗するため、preloadにcrossoriginを付けない
+    expect(html).not.toMatch(/rel="preload"[^>]*crossorigin|crossorigin[^>]*rel="preload"/);
 
     const css = fs.readFileSync(path.join(ASSETS_DIR, "main.css"), "utf-8");
     expect(css).toContain("font-display: block");

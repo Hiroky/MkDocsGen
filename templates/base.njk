@@ -8,9 +8,9 @@
   {%- if favicon %}
   <link rel="icon" href="{{ root }}{{ favicon }}"{% if faviconType %} type="{{ faviconType }}"{% endif %}>
   {%- endif %}
-  {# 主要Latinフォントを先行取得し、描画前に読み込んでフォールバック差し替えを避ける #}
-  <link rel="preload" href="{{ root }}assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="{{ root }}assets/fonts/jetbrains-mono-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  {# 主要Latinフォントを先行取得する。file://ではcrossorigin付きCORS fetchがorigin nullで失敗するため付与しない #}
+  <link rel="preload" href="{{ root }}assets/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2">
+  <link rel="preload" href="{{ root }}assets/fonts/jetbrains-mono-latin-wght-normal.woff2" as="font" type="font/woff2">
   <link rel="stylesheet" href="{{ root }}assets/main.css">
   {% for css in customCss %}
   <link rel="stylesheet" href="{{ root }}{{ css }}">
