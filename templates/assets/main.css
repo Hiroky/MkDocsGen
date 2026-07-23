@@ -1251,10 +1251,6 @@ html[data-theme="dark"] .admonition-danger .admonition-title {
   font-size: 0.88rem;
 }
 
-.toctree-item--heading > a {
-  color: var(--color-text-muted);
-}
-
 /* ---------------------------------------------------------------- */
 /* フッター: コピーライト+Made with の2行を載せた帯                    */
 /* ---------------------------------------------------------------- */
