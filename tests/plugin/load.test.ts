@@ -127,7 +127,7 @@ describe("loadPlugins", () => {
   });
 
   it("同一プロセス内でプラグインファイルを書き換えたら新しいファクトリが使われる", async () => {
-    // Node ESMキャッシュに乗っても、mtime付きURLで再読込できるようにする
+    // Node ESMキャッシュに乗っても、ファイル内容のハッシュ付きURLで確実に再読込できるようにする
     const fixture = createPluginFixture({
       plugins: [{ path: "./plugins/versioned.mjs" }],
       pluginFiles: {
@@ -140,9 +140,8 @@ describe("loadPlugins", () => {
     expect(first[0]?.name).toBe("v1");
     expect((first[0] as { label?: string }).label).toBe("first");
 
-    // 内容を書き換え、mtimeが進むよう少し待ってから書き込む
+    // プラグインファイルの内容を書き換える（コンテンツハッシュが変化するため即座に反映される）
     const pluginPath = `${fixture.root}/plugins/versioned.mjs`;
-    await new Promise((resolve) => setTimeout(resolve, 20));
     fs.writeFileSync(
       pluginPath,
       "export default () => ({ name: 'v2', label: 'second' });\n",

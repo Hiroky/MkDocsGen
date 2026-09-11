@@ -59,3 +59,13 @@ export function sleep(ms: number): Promise<void>
 {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Windowsでの遅延解放や一時ロックに対応した安全なディレクトリ削除
+ */
+export function safeRmSync(dirPath: string): void
+{
+  if (fs.existsSync(dirPath)) {
+    fs.rmSync(dirPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
+}

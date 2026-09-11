@@ -7,10 +7,21 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# 同一PRやブランチでの連続プッシュ時に古いジョブを自動キャンセルしてリソースを節約
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Test (${{ matrix.os }} / Node ${{ matrix.node-version }})
     runs-on: ${{ matrix.os }}
+    # プロセスのハングやデッドロックによる長時間のランナー占有・課金暴走を防止
+    timeout-minutes: 15
+    # Windows runner でも Bash を統一使用しシェル挙動の差異を吸収
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -33,19 +44,25 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Run tests
-        run: npm test
-
+      # テスト実行前にプロダクション成果物をビルドし、配布物検証テスト等がビルド済み成果物を前提に動けるようにする
       - name: Build artifacts
         run: npm run build
 
+      - name: Run tests
+        run: npm test
+
+      # tsxではなくビルド済み本番バイナリ（dist/cli/index.js）を直接実行してドキュメントを検証
       - name: Dogfooding build docs
-        run: npm run docs:build
+        run: node dist/cli/index.js build --config ./mkdocsgen.yml --clean
 
   perf:
     name: Performance Benchmarks
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

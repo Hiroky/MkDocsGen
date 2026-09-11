@@ -120,5 +120,5 @@ function resolveInternalLink(sourcePath: string, href: string): { targetPath: st
  */
 function normalizeSourcePath(sourcePath: string): string
 {
-  return sourcePath.split(path.sep).join("/");
+  return sourcePath.replace(/\\/g, "/");
 }

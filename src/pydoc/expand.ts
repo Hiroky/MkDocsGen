@@ -30,7 +30,7 @@ export function expandPydocDirectives(
   const normalizedMarkdown = normalizePydocNewlines(markdown);
   const directives = findPydocDirectives(normalizedMarkdown);
   if (directives.length === 0) {
-    return { markdown, extraHeadings: [], hasPydoc: false };
+    return { markdown: normalizedMarkdown, extraHeadings: [], hasPydoc: false };
   }
 
   // source_dirs を設定ファイル基準の絶対パスへ解決する

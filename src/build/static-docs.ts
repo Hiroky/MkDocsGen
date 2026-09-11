@@ -18,7 +18,7 @@ export function copyStaticDocs(config: ResolvedConfig): number
 
   let copied = 0;
   for (const file of files) {
-    const sourcePath = file.split(path.sep).join("/");
+    const sourcePath = file.replace(/\\/g, "/");
     copyOne(config, sourcePath);
     copied += 1;
   }
@@ -31,7 +31,7 @@ export function copyStaticDocs(config: ResolvedConfig): number
 export function syncStaticDocPaths(config: ResolvedConfig, relativePaths: string[]): void
 {
   for (const rel of relativePaths) {
-    const sourcePath = rel.split(path.sep).join("/");
+    const sourcePath = rel.replace(/\\/g, "/");
     // Markdownは変換パイプライン側で扱う
     if (sourcePath.endsWith(".md") || sourcePath.endsWith(".MD")) {
       continue;
@@ -90,8 +90,10 @@ function isExcluded(sourcePath: string, exclude: string[]): boolean
  */
 function matchGlob(value: string, pattern: string): boolean
 {
+  // Windows形式のパス区切り（\）をPOSIX形式（/）に揃えてから照合パターンを構築
+  const normalizedPattern = pattern.replace(/\\/g, "/");
   // ** / * / ? を正規表現へ落として照合する
-  const escaped = pattern
+  const escaped = normalizedPattern
     .replace(/[.+^${}()|[\]\\]/g, "\\$&")
     .replace(/\*\*/g, "\0DOUBLE\0")
     .replace(/\*/g, "[^/]*")

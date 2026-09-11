@@ -106,7 +106,7 @@ function collectWatchPaths(config: ResolvedConfig): string[]
  */
 function toDocsRelative(absPath: string, docsDirAbs: string): string
 {
-  return path.relative(docsDirAbs, absPath).split(path.sep).join("/");
+  return path.relative(docsDirAbs, absPath).replace(/\\/g, "/");
 }
 
 /**

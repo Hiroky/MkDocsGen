@@ -107,8 +107,8 @@ export function scanPages(config: ResolvedConfig, logger: Logger): PageSource[]
 
   const sources: PageSource[] = [];
   for (const file of files) {
-    // fast-globは既に/区切りだが、念のため正規化する
-    const sourcePath = file.split(path.sep).join("/");
+    // OS問わず確実にスラッシュ区切りへ正規化する
+    const sourcePath = file.replace(/\\/g, "/");
     const absPath = path.join(config.docsDirAbs, sourcePath);
     const raw = fs.readFileSync(absPath, "utf-8");
 

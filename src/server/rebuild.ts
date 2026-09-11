@@ -165,7 +165,7 @@ export async function rebuildDocs(
   }
 
   // navが不変なら、変更されたページだけ再変換・再レンダリングする
-  const normalizedChanged = changedSourcePaths.map((p) => p.split(path.sep).join("/"));
+  const normalizedChanged = changedSourcePaths.map((p) => p.replace(/\\/g, "/"));
   const changedSet = new Set(normalizedChanged.filter((p) => p.endsWith(".md")));
   // パッケージディレクティブを含む親ページが変わった場合、生成された子ページも再変換する
   for (const source of sources) {

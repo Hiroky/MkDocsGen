@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { ConfigError } from "../../src/config/load.js";
@@ -7,26 +7,9 @@ import { createRenderFixture } from "./helpers.js";
 
 const cleanups: Array<() => void> = [];
 
-// 実行環境で npm run build 済み（build-theme/が存在）でもテストが実行環境に依存しないよう、
-// 各テスト前後で退避・復元する
-const buildThemeDir = path.join(process.cwd(), "build-theme");
-const buildThemeBackupDir = `${buildThemeDir}.test-backup`;
-let hadExistingBuildTheme = false;
-
-beforeEach(() => {
-  hadExistingBuildTheme = fs.existsSync(buildThemeDir);
-  if (hadExistingBuildTheme) {
-    fs.renameSync(buildThemeDir, buildThemeBackupDir);
-  }
-});
-
 afterEach(() => {
   while (cleanups.length > 0) {
     cleanups.pop()?.();
-  }
-  fs.rmSync(buildThemeDir, { recursive: true, force: true });
-  if (hadExistingBuildTheme) {
-    fs.renameSync(buildThemeBackupDir, buildThemeDir);
   }
 });
 
@@ -96,16 +79,17 @@ describe("copyAssets", () => {
   });
 
   it("useMinifiedTheme:true ならbuild-theme/のminify済み版を優先する", () => {
-    // 公開パッケージ（dist経由）相当では minify 成果物を使うこと
-    fs.mkdirSync(buildThemeDir, { recursive: true });
-    fs.writeFileSync(path.join(buildThemeDir, "main.js"), "/*minified-js*/", "utf-8");
-    fs.writeFileSync(path.join(buildThemeDir, "main.css"), "/*minified-css*/", "utf-8");
-
+    // 公開パッケージ（dist経由）相当では minify 成果物を使うこと（一時ディレクトリで注入検証）
     const fixture = createRenderFixture();
     cleanups.push(fixture.cleanup);
     fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
 
-    copyAssets(fixture.config, { useMinifiedTheme: true });
+    const fakeMinifiedDir = path.join(fixture.root, "fake-build-theme");
+    fs.mkdirSync(fakeMinifiedDir, { recursive: true });
+    fs.writeFileSync(path.join(fakeMinifiedDir, "main.js"), "/*minified-js*/", "utf-8");
+    fs.writeFileSync(path.join(fakeMinifiedDir, "main.css"), "/*minified-css*/", "utf-8");
+
+    copyAssets(fixture.config, { useMinifiedTheme: true, minifiedThemeDir: fakeMinifiedDir });
 
     expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.js"), "utf-8")).toBe("/*minified-js*/");
     expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.css"), "utf-8")).toBe("/*minified-css*/");
@@ -113,15 +97,17 @@ describe("copyAssets", () => {
 
   it("src経由のデフォルトではbuild-theme/があってもtemplates/assetsを使う", () => {
     // docs:build / docs:serve は tsx で src から動くため、minify成果物を無視してソースを出すこと
-    fs.mkdirSync(buildThemeDir, { recursive: true });
-    fs.writeFileSync(path.join(buildThemeDir, "main.js"), "/*minified-js*/", "utf-8");
-    fs.writeFileSync(path.join(buildThemeDir, "main.css"), "/*minified-css*/", "utf-8");
-
     const fixture = createRenderFixture();
     cleanups.push(fixture.cleanup);
     fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
 
-    copyAssets(fixture.config);
+    const fakeMinifiedDir = path.join(fixture.root, "fake-build-theme");
+    fs.mkdirSync(fakeMinifiedDir, { recursive: true });
+    fs.writeFileSync(path.join(fakeMinifiedDir, "main.js"), "/*minified-js*/", "utf-8");
+    fs.writeFileSync(path.join(fakeMinifiedDir, "main.css"), "/*minified-css*/", "utf-8");
+
+    // useMinifiedTheme: false を明示して未指定（src実行時）と同様の挙動を検証
+    copyAssets(fixture.config, { useMinifiedTheme: false, minifiedThemeDir: fakeMinifiedDir });
 
     const sourceJs = fs.readFileSync(path.join(process.cwd(), "templates", "assets", "main.js"), "utf-8");
     const sourceCss = fs.readFileSync(path.join(process.cwd(), "templates", "assets", "main.css"), "utf-8");

@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -92,11 +93,13 @@ async function resolvePathFactory(
   }
 
   // ESMとして動的importする（file:// URLが必要）
-  // Nodeのモジュールキャッシュ回避のため、mtimeをクエリに付けて同一serve内の書き換えに追従する
+  // Nodeのモジュールキャッシュ回避のため、ファイル内容のハッシュをクエリに付与してファイル更新時に確実に再読込する
   let mod: { default?: unknown };
   try {
-    const mtimeMs = fs.statSync(absPath).mtimeMs;
-    const importUrl = `${pathToFileURL(absPath).href}?t=${mtimeMs}`;
+    // ファイル内容のSHA-256ハッシュを計算（ファイルシステムのmtime精度やOS差分に依存しない確実なキャッシュバスト）
+    const fileContent = fs.readFileSync(absPath);
+    const contentHash = crypto.createHash("sha256").update(fileContent).digest("hex").slice(0, 16);
+    const importUrl = `${pathToFileURL(absPath).href}?v=${contentHash}`;
     mod = await import(importUrl);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);

@@ -102,9 +102,9 @@ function renderFence(md: MarkdownIt, token: Token, highlighter: Awaited<ReturnTy
   const lang = info.split(/\s+/)[0]?.toLowerCase() ?? "";
   const code = token.content;
 
-  // Mermaidはクライアント描画のため生テキストを pre.mermaid に残す
+  // Mermaidはクライアント描画のため生テキストを pre.mermaid に残す（CRLF環境で行末に\rが残らないよう正規化）
   if (lang === "mermaid") {
-    return `<pre class="mermaid">${md.utils.escapeHtml(code.replace(/\n$/, ""))}</pre>\n`;
+    return `<pre class="mermaid">${md.utils.escapeHtml(code.replace(/\r?\n$/, ""))}</pre>\n`;
   }
 
   // 言語なしはプレーンテキストとして描画する（Shikiを通さない）
@@ -123,8 +123,8 @@ function renderFence(md: MarkdownIt, token: Token, highlighter: Awaited<ReturnTy
  */
 function wrapCodeBlock(md: MarkdownIt, innerHtml: string, rawCode: string, lang: string): string
 {
-  // 末尾改行はクリップボード用データから除く
-  const forCopy = rawCode.replace(/\n$/, "");
+  // 末尾改行はクリップボード用データから除く（CRLF環境で行末に\rが残らないよう正規化）
+  const forCopy = rawCode.replace(/\r?\n$/, "");
   const escaped = md.utils.escapeHtml(forCopy);
   // Confluence Storage FormatはXML属性の値省略を許さないため、
   // HTMLでは真偽属性として書けるdata-code-copyにも明示的な値を付ける。

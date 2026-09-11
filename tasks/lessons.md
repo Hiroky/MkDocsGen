@@ -90,3 +90,20 @@
 - **事象**: Windows CIで `package-distribution.test.ts` が5000msタイムアウト（8548ms）で失敗した
 - **原因**: `npm pack` 自体が `prepack` スクリプトを実行するのに、テスト冒頭でも手動で `npm run build` を呼んで二重ビルドしていた。またWindows CI runnerは子プロセス起動オーバーヘッドが大きいため、デフォルトの5秒タイムアウトを超過した。
 - **ルール**: `npm pack` テストでは二重ビルドを避け、外部プロセス実行やフルビルドを含む重い統合テストには個別タイムアウト（例: 30000ms）を明示指定してWindows等の低速CI runnerに対応する。
+
+- **日付**: 2026-09-11
+- **事象**: CI環境（Windows/Ubuntu）におけるFlakyテスト、ファイルロック競合（EBUSY）、改行コード・シバンの不整合
+- **原因**:
+  1. サーバーテストで `afterEach`（サーバークローズ）より前に `finally` で `fs.rmSync` が走り、Windows でファイルが開かれたまま削除しようとして `EBUSY / EPERM` を引き起こしていた。
+  2. `assets.test.ts` がリポジトリ直下の `build-theme` をテスト毎に `renameSync` して壊していたため、並列実行中の他テストと競合していた。
+  3. `package-distribution.test.ts` の `npm pack` が `prepack` をトリガーし、テスト実行中にリポジトリのビルド成果物を上書きしていた。
+  4. `tsconfig.json` に `"newLine": "lf"` が無く、Windows 上で `tsc` すると CLI バイナリのシバンが CRLF になり Linux で実行不能になっていた。
+  5. `split(path.sep).join("/")` が実行中 OS の区切り文字しか置換できず、Windows 形式のパス混在時にバックスラッシュが残留していた。
+- **ルール**:
+  1. サーバーやウォッチャーを起動するテストでは、必ず `handle.close()` の完了を待ってから一時ディレクトリを削除する。削除には `safeRmSync`（`maxRetries: 5, retryDelay: 100`）を用いる。
+  2. テストがリポジトリ直下の共有成果物（`build-theme` 等）を移動・削除してはならない。ディレクトリ注入（DI）を用いて一時ディレクトリ内で完結させる。
+  3. テスト内で `npm pack` を呼ぶ際は `--ignore-scripts` を付与し、テスト中のプロダクション再ビルド衝突を防ぐ。
+  4. CLI バイナリを生成するリポジトリでは `tsconfig.json` に `"newLine": "lf"`、ルートに `.gitattributes`（`* text=auto eol=lf`）を必須とする。
+  5. パス正規化には OS 依存の `split(path.sep)` を使わず、常に `str.replace(/\\/g, "/")` を用いる。
+
+

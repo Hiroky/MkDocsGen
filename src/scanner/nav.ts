@@ -232,8 +232,10 @@ function sortTree(node: TreeNode): void
  */
 function takeNode(rootChildren: TreeNode[], entryPath: string): TreeNode | null
 {
-  const isSection = entryPath.endsWith("/");
-  const pathKey = isSection ? entryPath.slice(0, -1) : entryPath;
+  // Windows形式のパス区切り（\）をPOSIX形式（/）に正規化して照合
+  const normalizedPath = entryPath.replace(/\\/g, "/");
+  const isSection = normalizedPath.endsWith("/");
+  const pathKey = isSection ? normalizedPath.slice(0, -1) : normalizedPath;
 
   // ルート直下を優先的に探す（ハイブリッドマージの主対象）
   for (let i = 0; i < rootChildren.length; i++) {

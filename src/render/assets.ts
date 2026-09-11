@@ -19,6 +19,8 @@ export interface CopiedAssets {
 export interface CopyAssetsOptions {
   /** trueならbuild-themeのminify版で上書きする。未指定時はdist経由ならtrue、src経由（docs:build等）ならfalse */
   useMinifiedTheme?: boolean;
+  /** テスト用にminify済みテーマのディレクトリを注入する場合に指定する */
+  minifiedThemeDir?: string;
 }
 
 /**
@@ -49,7 +51,7 @@ export function copyAssets(config: ResolvedConfig, options: CopyAssetsOptions = 
   // 公開バイナリ（dist経由）だけ minify 済みで上書きする。
   // docs:build / docs:serve は tsx で src から動くため、templates の編集がそのまま届く
   if (options.useMinifiedTheme ?? shouldUseMinifiedThemeByDefault()) {
-    overwriteWithMinifiedThemeAssets(outputAssetsDir);
+    overwriteWithMinifiedThemeAssets(outputAssetsDir, options.minifiedThemeDir);
   }
 
   // Mermaidランタイムをnode_modulesから同梱する（閲覧時のクライアント描画用）
@@ -154,10 +156,12 @@ function shouldUseMinifiedThemeByDefault(): boolean
 /**
  * build-theme/配下のminify済みファイルがあれば出力assetsを上書きする
  */
-function overwriteWithMinifiedThemeAssets(outputAssetsDir: string): void
+function overwriteWithMinifiedThemeAssets(outputAssetsDir: string, customThemeDir?: string): void
 {
   for (const fileName of MINIFIABLE_THEME_ASSETS) {
-    const minifiedPath = fileURLToPath(new URL(`../../build-theme/${fileName}`, import.meta.url));
+    const minifiedPath = customThemeDir
+      ? path.join(customThemeDir, fileName)
+      : fileURLToPath(new URL(`../../build-theme/${fileName}`, import.meta.url));
     if (fs.existsSync(minifiedPath)) {
       fs.copyFileSync(minifiedPath, path.join(outputAssetsDir, fileName));
     }

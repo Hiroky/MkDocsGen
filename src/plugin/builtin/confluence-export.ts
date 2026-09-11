@@ -1339,8 +1339,8 @@ function rewriteLocalImages(
     const pathPart = (src.split(/[?#]/)[0] ?? src);
     const absPath = path.resolve(baseDirAbs, decodeURIComponent(pathPart));
     // 添付ファイル名はdocsDirAbsからの相対パスを連結して作る。
-    // フォルダを跨いだ同名ファイル（例: 複数フォルダのscreenshot.png）の衝突を避けるため
-    const filename = path.relative(docsDirAbs, absPath).split(path.sep).join("_");
+    // フォルダを跨いだ同名ファイル（例: 複数フォルダのscreenshot.png）の衝突を避けるため（/と\双方に対応）
+    const filename = path.relative(docsDirAbs, absPath).replace(/[\/\\]/g, "_");
 
     let imageIndex = imageIndexes.get(filename);
     if (imageIndex === undefined) {

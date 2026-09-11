@@ -112,6 +112,8 @@ export async function startStaticServer(
             reject(wsError);
             return;
           }
+          // Node 18.2+ のKeep-Aliveソケット即時切断を呼び、接続待ちによるクローズ遅延を防ぐ
+          server.closeAllConnections?.();
           server.close((error) => {
             if (error) {
               reject(error);
