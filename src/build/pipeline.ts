@@ -3,7 +3,7 @@ import path from "node:path";
 import { loadProjectEnv } from "../config/env.js";
 import { loadConfig } from "../config/load.js";
 import type { ResolvedConfig } from "../config/schema.js";
-import type { Logger } from "../logger.js";
+import { Logger, type BuildLogger } from "../logger.js";
 import { createConverter } from "../markdown/convert.js";
 import { extractToctreePlaceholders, resolvePageToctrees, type ExtractToctreeResult } from "../markdown/toctree.js";
 import {
@@ -13,7 +13,7 @@ import {
   runTransformMarkdown
 } from "../plugin/hooks.js";
 import { loadPlugins } from "../plugin/load.js";
-import type { PageMeta, Plugin } from "../plugin/types.js";
+import type { AnyPlugin, PageMeta } from "../plugin/types.js";
 import { expandPydocDirectives, mergePydocHeadings } from "../pydoc/expand.js";
 import { expandPydocPackagePages } from "../pydoc/pages.js";
 import { ModuleResolveError } from "../pydoc/resolve.js";
@@ -56,7 +56,7 @@ export interface SiteBuildOutput {
   /** 再利用可能なMarkdown変換器 */
   converter: Awaited<ReturnType<typeof createConverter>>;
   /** 読み込み済みプラグイン（増分ビルドで再利用する） */
-  plugins: Plugin[];
+  plugins: AnyPlugin[];
   /** 再利用可能なPythonパーサ（tree-sitter WASM初期化済み） */
   pythonParser: PythonParser;
 }
@@ -77,18 +77,63 @@ export class BuildError extends Error
 }
 
 /**
+ * 渡されたBuildLoggerをパイプライン内部で必要なLoggerインスタンスへ適合させる
+ */
+function toLogger(logger?: BuildLogger, verbose: boolean = false): Logger
+{
+  // 既にLoggerインスタンスならそのまま再利用する
+  if (logger instanceof Logger) {
+    return logger;
+  }
+  // 未指定なら指定されたverbose設定で標準Loggerを生成する
+  if (!logger) {
+    return new Logger(verbose);
+  }
+
+  // 外部からカスタムのBuildLogger（プレーンオブジェクト等）が渡された場合、
+  // LoggerWritersを通じてログ出力を委譲するアダプタLoggerを生成する
+  const adapter = new Logger(verbose, {
+    stdout: (line) => logger.info(line),
+    stderr: (line) => logger.error(line)
+  });
+
+  // 各メソッドをカスタムロガーの対応メソッドへ直接差し替える
+  adapter.debug = (msg) => logger.debug(msg);
+  adapter.info = (msg) => logger.info(msg);
+  adapter.warn = (msg) => {
+    logger.warn(msg);
+    // 警告カウントを追跡する
+    (adapter as any).warnCount += 1;
+  };
+  adapter.error = (msg) => logger.error(msg);
+
+  // カスタムロガー自身がgetWarnCountを実装している場合はそちらを優先する
+  if (typeof logger.getWarnCount === "function") {
+    adapter.getWarnCount = () => logger.getWarnCount!();
+  }
+
+  return adapter;
+}
+
+/**
  * ビルド全体を実行する。CLIから呼ばれる入口
  */
-export async function runBuild(options: BuildOptions, logger: Logger): Promise<BuildResult>
+export async function runBuild(
+  options: BuildOptions,
+  logger?: BuildLogger
+): Promise<BuildResult>
 {
+  // ロガーが渡されなかった場合はオプションのverbose設定をもとに標準ロガーを生成する
+  const effectiveLogger = toLogger(logger, options.verbose);
+
   // 設定を読み込む（失敗時はConfigErrorがそのまま上へ伝播しCLIが表示する）
   const config = loadConfig(options.configPath);
-  logger.debug(`設定を読み込みました: ${config.configPath}`);
+  effectiveLogger.debug(`設定を読み込みました: ${config.configPath}`);
 
   // mkdocsgen.ymlと同じフォルダの.envがあれば読み込む（プラグインより前・シェルのenvは上書きしない）
   const loadedEnvKeys = loadProjectEnv(config.configDir);
   if (loadedEnvKeys.length > 0) {
-    logger.debug(`.envから環境変数を読み込みました: ${loadedEnvKeys.join(", ")}`);
+    effectiveLogger.debug(`.envから環境変数を読み込みました: ${loadedEnvKeys.join(", ")}`);
   }
 
   // --clean指定時は出力ディレクトリを空にする
@@ -96,30 +141,32 @@ export async function runBuild(options: BuildOptions, logger: Logger): Promise<B
     // 誤爆防止のため、危険な出力パスは削除前に拒否する
     assertOutputDirSafe(config.configDir, config.outputDirAbs, config.docsDirAbs);
     fs.rmSync(config.outputDirAbs, { recursive: true, force: true });
-    logger.debug(`出力ディレクトリを削除しました: ${config.outputDirAbs}`);
+    effectiveLogger.debug(`出力ディレクトリを削除しました: ${config.outputDirAbs}`);
   }
 
-  // 実体のサイト生成へ委譲する
-  const output = await buildSite(config, logger, {
+  const { result } = await buildSite(config, effectiveLogger, {
     strict: options.strict,
-    // --enable で指定されたプラグイン名をBuildContext経由で渡す（コアは中身を解釈しない）
+    verbose: options.verbose,
     enabledPlugins: options.enabledPlugins ?? []
   });
-  return output.result;
+
+  return result;
 }
 
 /**
- * 解決済み設定からサイトをフル生成する（serveからも再利用する）
+ * 静的サイト全体を生成する（buildおよびserveの初期ビルドから呼ばれる）
  */
 export async function buildSite(
   config: ResolvedConfig,
   logger: Logger,
   options: {
-    strict: boolean;
+    strict?: boolean;
+    verbose?: boolean;
     silentSummary?: boolean;
+    /** 呼び出し側で既に初期化済みの変換器（あれば再利用） */
     converter?: Awaited<ReturnType<typeof createConverter>>;
     /** 呼び出し側で既にロード済みのプラグイン（あれば再利用） */
-    plugins?: Plugin[];
+    plugins?: AnyPlugin[];
     /** 呼び出し側で既に初期化済みのPythonパーサ（あれば再利用） */
     pythonParser?: PythonParser;
     /** trueならconfigResolvedをスキップする */
@@ -220,7 +267,7 @@ export async function convertSourcesToPages(
   orderedPages: PageSource[],
   navResult: { breadcrumbsMap: Map<string, Page["breadcrumbs"]>; nav: NavNode[] },
   existingConverter?: Awaited<ReturnType<typeof createConverter>>,
-  plugins: Plugin[] = [],
+  plugins: AnyPlugin[] = [],
   reuse?: {
     /** 再変換するsourcePath集合。未指定なら全ページを変換する */
     onlySourcePaths: Set<string>;
@@ -324,7 +371,7 @@ export async function writeFullSite(
   pages: Page[],
   nav: NavNode[],
   logger: Logger,
-  plugins: Plugin[] = [],
+  plugins: AnyPlugin[] = [],
   enabledPlugins?: BuildContext["enabledPlugins"]
 ): Promise<BuildContext>
 {
@@ -358,7 +405,7 @@ export async function writePageHtml(
   context: BuildContext,
   renderer: Renderer,
   logger: Logger,
-  plugins: Plugin[] = []
+  plugins: AnyPlugin[] = []
 ): Promise<void>
 {
   // テンプレートでHTMLを生成し、プラグインで最終加工する

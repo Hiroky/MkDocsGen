@@ -3,7 +3,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ResolvedConfig } from "../config/schema.js";
 import { builtinPlugins } from "./builtin/index.js";
-import type { Plugin, PluginFactory } from "./types.js";
+import type { AnyPlugin, PluginFactory } from "./types.js";
 
 /**
  * プラグイン読込・実行で発生するエラー。CLIはこのメッセージを表示して終了コード1にする
@@ -24,21 +24,21 @@ export class PluginError extends Error
 /**
  * 設定のplugins一覧からローカルESMを読み込み、Plugin配列を列挙順で返す
  */
-export async function loadPlugins(config: ResolvedConfig): Promise<Plugin[]>
+export async function loadPlugins(config: ResolvedConfig): Promise<AnyPlugin[]>
 {
   // 未設定なら何もしない（空配列）
   if (config.plugins.length === 0) {
     return [];
   }
 
-  const plugins: Plugin[] = [];
+  const plugins: AnyPlugin[] = [];
   for (const entry of config.plugins) {
     const { factory, sourceLabel } = typeof entry.builtin === "string"
       ? resolveBuiltinFactory(entry.builtin)
       : await resolvePathFactory(config.configDir, entry.path ?? "");
 
     // YAMLのoptionsを渡してPluginインスタンスを得る
-    let plugin: Plugin;
+    let plugin: AnyPlugin;
     try {
       plugin = factory(entry.options ?? {});
     } catch (error) {

@@ -10,9 +10,25 @@ export interface LoggerWriters {
 }
 
 /**
- * ビルド全体で共有するロガー。警告数をカウントし、strict判定とサマリ表示に使う
+ * ビルド処理で利用可能なロガーインターフェース
  */
-export class Logger
+export interface BuildLogger {
+  /** 詳細デバッグログを出力する */
+  debug(message: string): void;
+  /** 通常の進捗メッセージを出力する */
+  info(message: string): void;
+  /** 警告メッセージを出力する */
+  warn(message: string): void;
+  /** エラーメッセージを出力する */
+  error(message: string): void;
+  /** これまでに出力された警告の件数を取得する（実装は任意） */
+  getWarnCount?(): number;
+}
+
+/**
+ * ビルド全体で共有する標準ロガー。警告数をカウントし、strict判定とサマリ表示に使う
+ */
+export class Logger implements BuildLogger
 {
   private verbose: boolean;
   private warnCount: number = 0;

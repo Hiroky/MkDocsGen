@@ -65,15 +65,35 @@ plugins:
 
 ## 独自プラグインの書き方
 
+プラグインは `apiVersion: 1` を宣言することで、将来の内部変更から保護された安定した公開型境界（`PluginConfigContext`, `PluginMarkdownContext`, `PluginHtmlContext`, `PluginBuildContext`）を通じて安全に処理を拡張できます。
+
+TypeScriptまたはJSDocを使って型安全に記述できます。
+
 ```javascript
+/**
+ * @type {import("mkdocsgen").MkDocsGenPluginFactory}
+ */
 export default function createPlugin(options = {}) {
   return {
     name: "my-plugin",
-    async transformHtml(html, page) {
+    apiVersion: 1,
+
+    async configResolved(context) {
+      // context.siteTitle, context.outputDir などを参照
+    },
+
+    async transformMarkdown(source, context) {
+      // context.sourcePath, context.frontmatter などを参照
+      return source;
+    },
+
+    async transformHtml(html, context) {
+      // context.title, context.headings などを参照
       return html;
     },
+
     async buildEnd(context) {
-      // context.pages / context.nav などを利用
+      // context.pages, context.nav, context.outputDir などを参照
     }
   };
 }

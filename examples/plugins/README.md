@@ -19,14 +19,19 @@ plugins:
 `plugins` に `path` でローカルESMファイルを指定すると、同じフック（`configResolved` / `transformMarkdown` / `transformHtml` / `buildEnd`）を使った独自プラグインを追加できます。
 
 ```javascript
+/**
+ * @type {import("mkdocsgen").MkDocsGenPluginFactory}
+ */
 export default function createPlugin(options = {}) {
   return {
     name: "my-plugin",
-    async transformHtml(html, page) {
+    apiVersion: 1,
+    async transformHtml(html, context) {
+      // context.title, context.sourcePath, context.headings などを利用
       return html;
     },
     async buildEnd(context) {
-      // context.pages / context.nav などを利用
+      // context.pages, context.nav, context.outputDir などを利用
     }
   };
 }

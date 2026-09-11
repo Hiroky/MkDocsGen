@@ -183,6 +183,12 @@ exports[`runBuild > 主要ページのHTMLスナップショットが一致す�
 
   <footer id="overridden-footer">Override Footer for Basic Site</footer>
 
+  
+  <dialog class="image-lightbox" data-image-lightbox aria-label="画像の拡大表示">
+    <button type="button" class="image-lightbox-close" data-lightbox-close aria-label="閉じる"></button>
+    <img class="image-lightbox-image" data-lightbox-image alt="">
+    <p class="image-lightbox-caption" data-lightbox-caption hidden></p>
+  </dialog>
   <script src="assets/mermaid.min.js" defer></script>
   <script src="assets/main.js" defer></script>
   
@@ -417,6 +423,12 @@ exports[`runBuild > 主要ページのHTMLスナップショットが一致す�
 
   <footer id="overridden-footer">Override Footer for Basic Site</footer>
 
+  
+  <dialog class="image-lightbox" data-image-lightbox aria-label="画像の拡大表示">
+    <button type="button" class="image-lightbox-close" data-lightbox-close aria-label="閉じる"></button>
+    <img class="image-lightbox-image" data-lightbox-image alt="">
+    <p class="image-lightbox-caption" data-lightbox-caption hidden></p>
+  </dialog>
   <script src="../assets/mermaid.min.js" defer></script>
   <script src="../assets/main.js" defer></script>
   
@@ -594,6 +606,12 @@ exports[`runBuild > 主要ページのHTMLスナップショットが一致す�
 
   <footer id="overridden-footer">Override Footer for Basic Site</footer>
 
+  
+  <dialog class="image-lightbox" data-image-lightbox aria-label="画像の拡大表示">
+    <button type="button" class="image-lightbox-close" data-lightbox-close aria-label="閉じる"></button>
+    <img class="image-lightbox-image" data-lightbox-image alt="">
+    <p class="image-lightbox-caption" data-lightbox-caption hidden></p>
+  </dialog>
   <script src="assets/mermaid.min.js" defer></script>
   <script src="assets/main.js" defer></script>
   

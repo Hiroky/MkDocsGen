@@ -11,7 +11,7 @@ import {
 import type { ResolvedConfig } from "../config/schema.js";
 import type { Logger } from "../logger.js";
 import type { createConverter } from "../markdown/convert.js";
-import type { Plugin } from "../plugin/types.js";
+import type { AnyPlugin } from "../plugin/types.js";
 import { ModuleResolveError } from "../pydoc/resolve.js";
 import { expandPydocPackagePages } from "../pydoc/pages.js";
 import type { PythonParser } from "../pydoc/tree-sitter.js";
@@ -35,7 +35,7 @@ export interface DevBuildState {
   /** 増分ビルドで再利用する変換器（Shiki初期化済み） */
   converter: MarkdownConverter;
   /** 増分ビルドで再利用するプラグイン */
-  plugins: Plugin[];
+  plugins: AnyPlugin[];
   /** 増分ビルドで再利用するPythonパーサ */
   pythonParser: PythonParser;
 }
@@ -95,7 +95,7 @@ export async function fullBuild(
   config: ResolvedConfig,
   logger: Logger,
   existingConverter?: MarkdownConverter,
-  existingPlugins?: Plugin[],
+  existingPlugins?: AnyPlugin[],
   existingPythonParser?: PythonParser
 ): Promise<DevBuildState>
 {

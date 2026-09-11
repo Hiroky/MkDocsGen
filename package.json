@@ -1,8 +1,9 @@
 {
   "name": "mkdocsgen",
   "version": "0.1.0",
-  "private": true,
   "description": "Markdownファイル群から静的ドキュメントサイトを生成するドキュメントビルダー",
+  "license": "MIT",
+  "author": "MkDocsGen Project",
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -10,14 +11,31 @@
   "bin": {
     "mkdocsgen": "./dist/cli/index.js"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin/api.d.ts",
+      "import": "./dist/plugin/api.js"
+    },
+    "./logger": {
+      "types": "./dist/logger.d.ts",
+      "import": "./dist/logger.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist",
     "templates",
     "vendor",
     "build-theme",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
+    "prepack": "npm run build",
     "dev": "tsx src/cli/index.ts",
     "build": "tsc -p tsconfig.json && npm run build:theme && npm run build:shiki",
     "build:theme": "esbuild templates/assets/main.js --minify --outfile=build-theme/main.js && esbuild templates/assets/main.css --minify --outfile=build-theme/main.css",

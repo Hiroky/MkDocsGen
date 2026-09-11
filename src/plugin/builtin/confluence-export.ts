@@ -1,8 +1,13 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import type { NavNode, Page } from "../../types.js";
-import type { Plugin, PluginFactory } from "../types.js";
+import type {
+  MkDocsGenPlugin,
+  MkDocsGenPluginFactory,
+  PluginBuildContext,
+  PluginNavNode,
+  PluginPageSummary
+} from "../api.js";
 
 /**
  * Confluenceエクスポート組み込みプラグイン
@@ -60,6 +65,12 @@ interface ConfluenceContentResult {
   body?: { storage?: { value?: string } };
 }
 
+/** 同期計画の詳細（差分判定結果） */
+type SyncAction =
+  | { type: "skip"; reason: string }
+  | { type: "create"; title: string; parentId: string | null; body: string }
+  | { type: "update"; id: string; version: number; title: string; parentId: string | null; body: string };
+
 /** Confluenceへ同期したページのID・バージョン・実タイトル */
 interface ConfluencePageInfo {
   pageId: string;
@@ -107,15 +118,15 @@ interface LocalImageRef {
 }
 
 /**
- * 環境変数優先でオプション値を解決する。どちらも無ければnull
+ * 環境変数値とYAML options値を解決する（環境変数を優先）
  */
-function resolveSetting(envValue: string | undefined, optionValue: unknown): string | null
+function resolveSetting(envVal: string | undefined, optVal: unknown): string | null
 {
-  if (typeof envValue === "string" && envValue !== "") {
-    return envValue;
+  if (typeof envVal === "string" && envVal.trim().length > 0) {
+    return envVal.trim();
   }
-  if (typeof optionValue === "string" && optionValue !== "") {
-    return optionValue;
+  if (typeof optVal === "string" && optVal.trim().length > 0) {
+    return optVal.trim();
   }
   return null;
 }
@@ -123,7 +134,7 @@ function resolveSetting(envValue: string | undefined, optionValue: unknown): str
 /**
  * プラグインファクトリ
  */
-export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => {
+export const createConfluenceExportPlugin: MkDocsGenPluginFactory = (options): MkDocsGenPlugin => {
   // passwordはYAMLに書けない（秘密情報の誤コミット防止）。env専用
   if (options.password !== undefined) {
     throw new Error(
@@ -146,14 +157,16 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
 
   return {
     name: "confluence-export",
+    apiVersion: 1,
 
     /**
      * 全ページ出力完了後にConfluenceへ同期する
      */
-    async buildEnd(context)
+    async buildEnd(context: PluginBuildContext)
     {
+      const enabledPlugins = context.enabledPlugins ?? [];
       // --enable に自プラグイン名が無い通常のbuildでは同期しない（ローカル検証で誤アップロードしないため）
-      if (!context.enabledPlugins?.includes("confluence-export")) {
+      if (!enabledPlugins.includes("confluence-export")) {
         console.info(
           "[confluence-export] スキップしました（同期するには mkdocsgen build --enable confluence-export）"
         );
@@ -164,6 +177,8 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
       if (!space) {
         throw new Error("space が未設定です（options.space か CONFLUENCE_SPACE でスペースキーを指定してください）");
       }
+
+      const docsDir = context.docsDir ?? (context as any).config?.docsDirAbs ?? "";
 
       // passwordはbuildEnd実行時点の環境変数から読む（YAML不可）
       const password = process.env.CONFLUENCE_PASSWORD ?? null;
@@ -206,7 +221,7 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
       /** 計画キー → 同期済みページ情報（後段のリンク変換で使用する） */
       const pageInfos = new Map<string, ConfluencePageInfo>();
       /** 同期後に本文リンクを書き換える対象の元データ */
-      const exportedBodies: Array<{ item: PlanItem; page: Page | undefined; bodyHtml: string }> = [];
+      const exportedBodies: Array<{ item: PlanItem; page: PluginPageSummary | undefined; bodyHtml: string }> = [];
 
       for (const item of plan) {
         // セクション（url無し）は本文なしの親ページとして作る
@@ -232,7 +247,7 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
           bodyHtml,
           parentId,
           sourceKey,
-          docsDirAbs: context.config.docsDirAbs,
+          docsDirAbs: docsDir,
           sourcePath: page ? page.sourcePath : null
         });
         createdIds.set(item.key, upserted.pageId);
@@ -275,7 +290,7 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
         );
         const finalBodyValue = (await prepareConfluenceBody(
           rewrittenBody,
-          context.config.docsDirAbs,
+          docsDir,
           exported.page?.sourcePath ?? null
         )).value;
         const finalBodyHash = createHash("sha256").update(finalBodyValue).digest("hex");
@@ -288,7 +303,7 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
             title: pageInfo.title,
             bodyHtml: rewrittenBody,
             version: pageInfo.version,
-            docsDirAbs: context.config.docsDirAbs,
+            docsDirAbs: docsDir,
             sourcePath: exported.page?.sourcePath ?? null
           });
           pageInfo.bodyUpdated = true;
@@ -328,8 +343,8 @@ export const createConfluenceExportPlugin: PluginFactory = (options): Plugin => 
  * ナビツリーを深さ優先で走査し、親子キー付きのエクスポート計画を作る
  */
 function buildExportPlan(
-  nav: NavNode[],
-  pages: Page[],
+  nav: ReadonlyArray<PluginNavNode>,
+  pages: ReadonlyArray<PluginPageSummary>,
   options: { homeAsRoot: boolean; rootPageTitle: string | null }
 ): PlanItem[]
 {
@@ -339,7 +354,7 @@ function buildExportPlan(
   /**
    * ノードを再帰的に計画へ追加する
    */
-  function walk(nodes: NavNode[], parentKey: string | null): void
+  function walk(nodes: ReadonlyArray<PluginNavNode>, parentKey: string | null): void
   {
     for (const node of nodes) {
       const key = `n${seq++}`;
@@ -1052,7 +1067,7 @@ function needsConfluenceIdPrefix(pageTitleWithoutSpaces: string): boolean
 /**
  * ページの見出し情報から、Markdown slug → ConfluenceアンカーIDの対応表を作る
  */
-function buildAnchorsBySlug(page: Page | undefined): Map<string, string>
+function buildAnchorsBySlug(page: PluginPageSummary | undefined): Map<string, string>
 {
   const anchorsBySlug = new Map<string, string>();
   if (page === undefined) {
