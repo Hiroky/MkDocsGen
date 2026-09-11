@@ -69,6 +69,14 @@ export function createSilentLogger(verbose = false): Logger
 }
 
 /**
+ * ANSIエスケープシーケンスを除去する
+ */
+function stripAnsi(text: string): string
+{
+  return text.replace(/\u001b\[[0-9;]*m/g, "");
+}
+
+/**
  * 警告メッセージを収集するテスト用ロガーを作る
  */
 export function createCapturingLogger(): { logger: Logger; warnings: string[] }
@@ -77,8 +85,8 @@ export function createCapturingLogger(): { logger: Logger; warnings: string[] }
   const logger = new Logger(false, {
     stdout: () => {},
     stderr: (line) => {
-      // warn: プレフィックス付きの行からメッセージ本体だけ抜き出す
-      warnings.push(line.replace(/^.*?warn:\s*/, ""));
+      // warn: プレフィックス付きの行からメッセージ本体だけ抜き出す（カラーコードを除去）
+      warnings.push(stripAnsi(line).replace(/^.*?warn:\s*/, ""));
     }
   });
   return { logger, warnings };

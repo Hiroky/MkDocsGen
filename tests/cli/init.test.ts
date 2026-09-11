@@ -6,7 +6,15 @@ import { runInit } from "../../src/cli/init.js";
 import { Logger } from "../../src/logger.js";
 
 /**
- * 警告・infoを収集するロガーを作る
+ * ANSIエスケープシーケンスを除去する
+ */
+function stripAnsi(text: string): string
+{
+  return text.replace(/\u001b\[[0-9;]*m/g, "");
+}
+
+/**
+ * ログを収集するロガーを作る
  */
 function capturingLogger(): { logger: Logger; infos: string[]; warnings: string[] }
 {
@@ -14,7 +22,7 @@ function capturingLogger(): { logger: Logger; infos: string[]; warnings: string[
   const warnings: string[] = [];
   const logger = new Logger(false, {
     stdout: (line) => infos.push(line),
-    stderr: (line) => warnings.push(line.replace(/^.*?warn:\s*/, ""))
+    stderr: (line) => warnings.push(stripAnsi(line).replace(/^.*?warn:\s*/, ""))
   });
   return { logger, infos, warnings };
 }

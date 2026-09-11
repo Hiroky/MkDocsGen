@@ -58,6 +58,14 @@ function silentLogger(verbose = false): Logger
 }
 
 /**
+ * ANSIエスケープシーケンスを除去する
+ */
+function stripAnsi(text: string): string
+{
+  return text.replace(/\u001b\[[0-9;]*m/g, "");
+}
+
+/**
  * infoログを収集するロガーを作る
  */
 function capturingInfoLogger(): { logger: Logger; infos: string[]; warnings: string[] }
@@ -66,7 +74,7 @@ function capturingInfoLogger(): { logger: Logger; infos: string[]; warnings: str
   const warnings: string[] = [];
   const logger = new Logger(false, {
     stdout: (line) => infos.push(line),
-    stderr: (line) => warnings.push(line.replace(/^.*?warn:\s*/, ""))
+    stderr: (line) => warnings.push(stripAnsi(line).replace(/^.*?warn:\s*/, ""))
   });
   return { logger, infos, warnings };
 }

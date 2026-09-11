@@ -4,6 +4,14 @@ import { Logger } from "../../src/logger.js";
 import { createTestPage } from "../render/helpers.js";
 
 /**
+ * ANSIエスケープシーケンスを除去する
+ */
+function stripAnsi(text: string): string
+{
+  return text.replace(/\u001b\[[0-9;]*m/g, "");
+}
+
+/**
  * 警告を収集するロガーを作る
  */
 function capturingLogger(): { logger: Logger; warnings: string[] }
@@ -11,7 +19,7 @@ function capturingLogger(): { logger: Logger; warnings: string[] }
   const warnings: string[] = [];
   const logger = new Logger(false, {
     stdout: () => {},
-    stderr: (line) => warnings.push(line.replace(/^.*?warn:\s*/, ""))
+    stderr: (line) => warnings.push(stripAnsi(line).replace(/^.*?warn:\s*/, ""))
   });
   return { logger, warnings };
 }
