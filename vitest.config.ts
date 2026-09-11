@@ -4,8 +4,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],
-    // 通常のテスト実行からベンチマークテストを除外（npm run test:perf で明示実行）
-    exclude: ["**/node_modules/**", "**/dist/**", "tests/perf/**"],
+    exclude: ["**/node_modules/**", "**/dist/**"],
     // Node環境で実行する（ブラウザAPIは使用しない）
     environment: "node",
     // WASM（web-tree-sitter）、子プロセス実行、動的importのモジュール競合を防ぐためプロセス分離を採用
