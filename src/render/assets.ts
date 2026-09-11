@@ -147,10 +147,11 @@ const MINIFIABLE_THEME_ASSETS = ["main.js", "main.css"];
 /**
  * dist経由（公開CLI）ならminify済みテーマを使い、src経由（docs:build等）なら使わない
  */
-function shouldUseMinifiedThemeByDefault(): boolean
+export function shouldUseMinifiedThemeByDefault(filePath = fileURLToPath(import.meta.url)): boolean
 {
-  // このファイル自身の配置で判定する（src/render vs dist/render）
-  return fileURLToPath(import.meta.url).includes(`${path.sep}dist${path.sep}`);
+  // このファイル自身の配置で判定する（src/render vs dist/render、WindowsとPOSIX双方の区切りに対応）
+  const normalized = filePath.replace(/\\/g, "/");
+  return normalized.includes("/dist/");
 }
 
 /**

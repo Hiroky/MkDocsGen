@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { ConfigError } from "../../src/config/load.js";
-import { copyAssets } from "../../src/render/assets.js";
+import { copyAssets, shouldUseMinifiedThemeByDefault } from "../../src/render/assets.js";
 import { createRenderFixture } from "./helpers.js";
 
 const cleanups: Array<() => void> = [];
@@ -96,7 +96,7 @@ describe("copyAssets", () => {
   });
 
   it("src経由のデフォルトではbuild-theme/があってもtemplates/assetsを使う", () => {
-    // docs:build / docs:serve は tsx で src から動くため、minify成果物を無視してソースを出すこと
+    // docs:build / docs:serve は tsx で src から動くため、minify成果物があっても無視してソースを出すこと（デフォルト判定の検証）
     const fixture = createRenderFixture();
     cleanups.push(fixture.cleanup);
     fs.mkdirSync(fixture.config.outputDirAbs, { recursive: true });
@@ -106,13 +106,23 @@ describe("copyAssets", () => {
     fs.writeFileSync(path.join(fakeMinifiedDir, "main.js"), "/*minified-js*/", "utf-8");
     fs.writeFileSync(path.join(fakeMinifiedDir, "main.css"), "/*minified-css*/", "utf-8");
 
-    // useMinifiedTheme: false を明示して未指定（src実行時）と同様の挙動を検証
-    copyAssets(fixture.config, { useMinifiedTheme: false, minifiedThemeDir: fakeMinifiedDir });
+    // useMinifiedThemeを未指定（undefined）にして、shouldUseMinifiedThemeByDefault() のデフォルト解決を検証
+    copyAssets(fixture.config, { minifiedThemeDir: fakeMinifiedDir });
 
     const sourceJs = fs.readFileSync(path.join(process.cwd(), "templates", "assets", "main.js"), "utf-8");
     const sourceCss = fs.readFileSync(path.join(process.cwd(), "templates", "assets", "main.css"), "utf-8");
     expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.js"), "utf-8")).toBe(sourceJs);
     expect(fs.readFileSync(path.join(fixture.config.outputDirAbs, "assets", "main.css"), "utf-8")).toBe(sourceCss);
+  });
+
+  it("shouldUseMinifiedThemeByDefault はdist経由でtrue、src経由でfalseを返す", () => {
+    // POSIX パスでの判定検証
+    expect(shouldUseMinifiedThemeByDefault("/app/dist/render/assets.js")).toBe(true);
+    expect(shouldUseMinifiedThemeByDefault("/app/src/render/assets.js")).toBe(false);
+
+    // Windows パスでの判定検証
+    expect(shouldUseMinifiedThemeByDefault("C:\\app\\dist\\render\\assets.js")).toBe(true);
+    expect(shouldUseMinifiedThemeByDefault("C:\\app\\src\\render\\assets.js")).toBe(false);
   });
 
   it("minisearch.min.jsをoutput/assetsへコピーする", () => {

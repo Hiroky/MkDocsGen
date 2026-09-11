@@ -28,12 +28,9 @@ describe("npmパッケージ配布物検証", () =>
 
   beforeAll(() =>
   {
-    // テスト単独実行時でも成果物が存在するよう、dist/cli/index.jsが無ければビルドする
-    const binPath = path.join(rootDir, "dist/cli/index.js");
-    if (!fs.existsSync(binPath)) {
-      execSync("npm run build", { cwd: rootDir, encoding: "utf-8" });
-    }
-  });
+    // 古い成果物による偽陽性を防ぐため、配布物検証の前に必ず最新のコードでビルドを実行する
+    execSync("npm run build", { cwd: rootDir, encoding: "utf-8" });
+  }, 30000);
 
   /**
    * npm packのdry-runで含まれるファイル一覧を検証する
