@@ -32,14 +32,7 @@ describe("npmパッケージ配布物検証", () =>
     // プロジェクトルートパスを取得
     const rootDir = path.resolve(__dirname, "../..");
 
-    // 事前にビルドが完了していることを確認（prepack相当）
-    const buildResult = execSync("npm run build", {
-      cwd: rootDir,
-      encoding: "utf-8"
-    });
-    expect(buildResult).toBeDefined();
-
-    // npm pack --dry-run --json を実行
+    // npm pack --dry-run --json を実行（package.jsonのprepackによって自動ビルドされる）
     const packOutput = execSync("npm pack --dry-run --json", {
       cwd: rootDir,
       encoding: "utf-8"
@@ -74,7 +67,15 @@ describe("npmパッケージ配布物検証", () =>
     expect(hasTests).toBe(false);
     expect(hasGithub).toBe(false);
     expect(hasTsConfig).toBe(false);
-  });
+
+    // 3. package.json exports で指定されたファイルが全て配布物に含まれていること
+    expect(packedPaths).toContain("dist/index.js");
+    expect(packedPaths).toContain("dist/index.d.ts");
+    expect(packedPaths).toContain("dist/plugin/api.js");
+    expect(packedPaths).toContain("dist/plugin/api.d.ts");
+    expect(packedPaths).toContain("dist/logger.js");
+    expect(packedPaths).toContain("dist/logger.d.ts");
+  }, 30000);
 
   /**
    * package.jsonのbinファイルが存在し、実行可能であることを検証する
