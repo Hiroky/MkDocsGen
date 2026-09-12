@@ -67,6 +67,8 @@ plugins:
 
 プラグインは `apiVersion: 1` を宣言することで、将来の内部変更から保護された安定した公開型境界（`PluginConfigContext`, `PluginMarkdownContext`, `PluginHtmlContext`, `PluginBuildContext`）を通じて安全に処理を拡張できます。
 
+`apiVersion` を省略したプラグインは、既存プラグインとの互換性のためレガシーAPIとして扱われます。`1` 以外の値を明示したプラグインは未対応のAPIバージョンとして、フック実行前にエラーになります。未対応の値をレガシーAPIとして実行することはありません。
+
 TypeScriptまたはJSDocを使って型安全に記述できます。
 
 ```javascript

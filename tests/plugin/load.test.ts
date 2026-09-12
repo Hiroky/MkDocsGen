@@ -103,6 +103,25 @@ describe("loadPlugins", () => {
     await expect(loadPlugins(fixture.config)).rejects.toThrow(/name/);
   });
 
+  it("サポートされていないapiVersionを持つプラグインはPluginErrorを投げる", async () => {
+    // 未知のAPIバージョンをレガシープラグインとして誤実行しないことを検証する
+    const fixture = createPluginFixture({
+      plugins: [{ path: "./plugins/unsupported-api.mjs" }],
+      pluginFiles: {
+        "plugins/unsupported-api.mjs": [
+          "export default () => ({",
+          "  name: 'unsupported-api',",
+          "  apiVersion: 2",
+          "});"
+        ].join("\n")
+      }
+    });
+    cleanups.push(fixture.cleanup);
+
+    await expect(loadPlugins(fixture.config)).rejects.toBeInstanceOf(PluginError);
+    await expect(loadPlugins(fixture.config)).rejects.toThrow(/サポートされていないPlugin API version.*2/);
+  });
+
   it("builtin指定で組み込みプラグインをpath無しで解決できる", async () => {
     // dryRun:trueなのでAPI呼び出しは発生しない
     const fixture = createPluginFixture({

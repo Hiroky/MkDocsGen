@@ -57,6 +57,14 @@ export async function loadPlugins(config: ResolvedConfig): Promise<AnyPlugin[]>
       );
     }
 
+    // apiVersionが明示されている場合は、現在サポートするバージョンだけを受け入れる
+    // 未知のバージョンをレガシーAPIとして扱うと、互換性のないフック引数が渡るため拒否する
+    if (plugin.apiVersion !== undefined && plugin.apiVersion !== 1) {
+      throw new PluginError(
+        `サポートされていないPlugin API versionです: ${String(plugin.apiVersion)} (${sourceLabel})`
+      );
+    }
+
     plugins.push(plugin);
   }
 

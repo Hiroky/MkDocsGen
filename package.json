@@ -6,7 +6,7 @@
   "author": "MkDocsGen Project",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "bin": {
     "mkdocsgen": "./dist/cli/index.js"
